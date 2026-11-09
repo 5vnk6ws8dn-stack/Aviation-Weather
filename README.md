@@ -3,6 +3,7 @@ Hourly automation
 •	What it checks: each run looks at NWS active alerts for JFK, plus SIGMETs, Convective SIGMETs, AIRMETs and Center Weather Advisories whose area covers the airport.
 •	When it notifies you: only when a new hazard appears or an existing one changes. Quiet runs just log a one-line “no new hazards” result. Notifications are set to go to your phone as push alerts.
 •	Where it runs: in its own separate conversation, using the light mode to keep each run cheap.
+
 Web version of the script
 The page is in the attached preview. You can type an airport code (like KDEN) or a latitude and longitude, or press “Check now,” and it refreshes itself every 15 minutes. Results are grouped into NWS alerts, SIGMETs/AIRMETs and Center Weather Advisories, each with the full alert text.
 I tested it on the hosted preview with JFK and Denver, which had no active hazards. I also tested a point in Texas that sat inside a real active Convective SIGMET, and it showed it correctly with altitudes, valid times and the full text.
