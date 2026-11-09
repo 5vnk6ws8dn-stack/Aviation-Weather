@@ -6,7 +6,9 @@
 <title>Aviation Weather Hazard Check</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script>window.__API_BASE__ = 'port/8000';</script>
+<!-- Data relay for aviationweather.gov, MeteoAlarm and airport search (those sites block direct browser requests).
+     Change this URL to use your own relay, for example https://<your-project>.pages.dev/api with window.__STATIC_DATA__ = false. -->
+<script>window.__API_BASE__ = 'https://aviation-wx-check.pplx.app/port/8000';</script>
 <style>
   :root{
     --bg:#0e1216; --surface:#151b21; --surface-2:#1c242c; --line:#28323c;
@@ -14,44 +16,95 @@
     --clear:#4fbf8b; --warn:#e8b14a; --danger:#ef6b5b; --info:#6aa8e8;
     --mono:'IBM Plex Mono',ui-monospace,monospace; --sans:'IBM Plex Sans',system-ui,sans-serif;
   }
+  html{font-size:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%}
   *{box-sizing:border-box;margin:0}
-  body{background:var(--bg);color:var(--text);font:15px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
-  .wrap{max-width:980px;margin:0 auto;padding:32px 20px 64px}
-  header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:24px}
-  h1{font-size:22px;font-weight:600;letter-spacing:-.01em}
-  .sub{color:var(--muted);font-size:13px}
-  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:end;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:20px}
-  label{display:flex;flex-direction:column;gap:4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
-  .loc input{width:220px}
-  .place{font:12px var(--mono);color:var(--muted);margin:-12px 0 16px 2px;min-height:16px}
-  input{background:var(--bg);border:1px solid var(--line);color:var(--text);font:14px var(--mono);padding:8px 10px;border-radius:6px;width:130px}
+  body{background:var(--bg);color:var(--text);font:1.875rem/1.5 var(--sans);-webkit-font-smoothing:antialiased;overflow-wrap:break-word}
+  .wrap{max-width:87.5rem;margin:0 auto;padding:2rem 1.25rem 4rem}
+  header{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem}
+  h1{font-size:2.75rem;font-weight:600;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:1.625rem}
+  .controls{display:flex;gap:0.5rem;flex-wrap:wrap;align-items:end;background:var(--surface);border:1px solid var(--line);border-radius:0.625rem;padding:0.875rem;margin-bottom:1.25rem}
+  label{display:flex;flex-direction:column;gap:0.25rem;font-size:1.375rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  .loc input{width:23.75rem}
+  .ver{font:1.375rem var(--mono);color:var(--faint);margin-bottom:0.375rem}
+  .place{font:1.5rem var(--mono);color:var(--muted);margin:-0.75rem 0 1rem 2px;min-height:2rem}
+  input{background:var(--bg);border:1px solid var(--line);color:var(--text);font:1.75rem var(--mono);padding:0.75rem 0.875rem;border-radius:0.5rem;width:13.75rem}
   input:focus{outline:2px solid var(--info);outline-offset:1px}
-  button{background:var(--text);color:var(--bg);border:0;font:600 14px var(--sans);padding:9px 16px;border-radius:6px;cursor:pointer}
+  button{background:var(--text);color:var(--bg);border:0;font:600 1.75rem var(--sans);padding:0.8125rem 1.5rem;border-radius:0.5rem;cursor:pointer}
   button:hover{opacity:.9} button:disabled{opacity:.5;cursor:wait}
-  .toggle{flex-direction:row;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:13px;margin-left:auto;padding-bottom:8px}
-  .toggle input{width:auto}
-  .banner{border-radius:10px;padding:18px 20px;margin-bottom:20px;border:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
-  .banner .big{font-size:18px;font-weight:600}
+  .toggle{flex-direction:row;align-items:center;gap:0.375rem;text-transform:none;letter-spacing:0;font-size:1.625rem;margin-left:auto;padding-bottom:0.5rem}
+  .toggle input{width:1.1em;height:1.1em;padding:0;margin-right:0.375rem}
+  .banner{border-radius:0.625rem;padding:1.125rem 1.25rem;margin-bottom:1.25rem;border:1px solid var(--line);display:flex;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;align-items:center}
+  .banner .big{font-size:2.25rem;font-weight:600}
   .banner.clear{background:color-mix(in srgb,var(--clear) 12%,var(--surface));border-color:color-mix(in srgb,var(--clear) 40%,var(--line))}
   .banner.alert{background:color-mix(in srgb,var(--danger) 14%,var(--surface));border-color:color-mix(in srgb,var(--danger) 45%,var(--line))}
   .banner.idle{background:var(--surface)}
-  .meta{font:12px var(--mono);color:var(--muted)}
-  section{margin-bottom:22px}
-  h2{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:500;margin-bottom:8px;display:flex;justify-content:space-between}
-  .card{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:8px;padding:12px 14px;margin-bottom:8px}
+  .meta{font:1.5rem var(--mono);color:var(--muted)}
+  section{margin-bottom:1.375rem}
+  h2{font-size:1.5rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:500;margin-bottom:0.5rem;display:flex;justify-content:space-between}
+  .card{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:0.5rem;padding:0.75rem 0.875rem;margin-bottom:0.5rem}
   .card.sev-high{border-left-color:var(--danger)} .card.sev-info{border-left-color:var(--info)}
-  .card .t{font-weight:600;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .tag{font:500 11px var(--mono);padding:2px 6px;border-radius:4px;background:var(--surface-2);color:var(--muted)}
-  .card .d{color:var(--muted);font-size:13px;margin-top:4px}
-  details{margin-top:6px} summary{cursor:pointer;color:var(--info);font-size:12px}
-  pre{white-space:pre-wrap;word-break:break-word;font:12px/1.45 var(--mono);color:var(--muted);background:var(--bg);padding:10px;border-radius:6px;margin-top:6px}
-  .empty{color:var(--faint);font-size:13px;padding:10px 0}
-  .err{color:var(--danger);font-size:13px;padding:8px 0}
-  .skel{height:54px;border-radius:8px;background:linear-gradient(90deg,var(--surface) 0,var(--surface-2) 50%,var(--surface) 100%);background-size:200% 100%;animation:sh 1.2s infinite}
+  .card .t{font-weight:600;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center}
+  .tag{font:500 1.375rem var(--mono);padding:2px 0.375rem;border-radius:0.25rem;background:var(--surface-2);color:var(--muted)}
+  .card .d{color:var(--muted);font-size:1.625rem;margin-top:0.25rem}
+  details{margin-top:0.375rem} summary{cursor:pointer;color:var(--info);font-size:1.5rem}
+  pre{white-space:pre-wrap;word-break:break-word;font:1.5rem/1.45 var(--mono);color:var(--muted);background:var(--bg);padding:0.625rem;border-radius:0.375rem;margin-top:0.375rem}
+  .empty{color:var(--faint);font-size:1.625rem;padding:0.625rem 0}
+  .err{color:var(--danger);font-size:1.625rem;padding:0.5rem 0}
+  .skel{height:3.375rem;border-radius:0.5rem;background:linear-gradient(90deg,var(--surface) 0,var(--surface-2) 50%,var(--surface) 100%);background-size:200% 100%;animation:sh 1.2s infinite}
   @keyframes sh{to{background-position:-200% 0}}
-  footer{color:var(--faint);font-size:12px;margin-top:32px;border-top:1px solid var(--line);padding-top:14px}
+  .sources{display:flex;flex-wrap:wrap;gap:0.375rem;margin:-0.5rem 0 1.25rem}
+  .chip{font:500 1.375rem var(--mono);padding:3px 0.5rem;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+  .chip.ok{border-color:color-mix(in srgb,var(--clear) 45%,var(--line));color:var(--clear)}
+  .chip.bad{border-color:color-mix(in srgb,var(--danger) 45%,var(--line));color:var(--danger)}
+  .chip.backup{border-color:color-mix(in srgb,var(--warn) 45%,var(--line));color:var(--warn)}
+  .card.sev-model{border-left-color:var(--info)}
+  footer{color:var(--faint);font-size:1.5rem;margin-top:2rem;border-top:1px solid var(--line);padding-top:0.875rem}
   footer a{color:var(--muted)}
-  @media (max-width:600px){.toggle{margin-left:0}input{width:110px}.loc{width:100%}.loc input{width:100%}}
+  .hright{display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap}
+  .tsize{display:flex;align-items:center;border:1px solid var(--line);border-radius:999px;background:var(--surface);overflow:hidden}
+  .tsize button{background:transparent;color:var(--muted);font:600 1.375rem var(--sans);padding:0.375rem 0.875rem;border-radius:0}
+  .tsize button:hover{color:var(--text);background:var(--surface-2);opacity:1}
+  .tsize output{font:1.25rem var(--mono);color:var(--muted);min-width:3.6em;text-align:center}
+  .vbadge{font:500 1.375rem var(--mono);color:var(--muted);background:var(--surface);border:1px solid var(--line);padding:0.375rem 0.875rem;border-radius:999px;cursor:pointer}
+  .vbadge:hover{color:var(--text);opacity:1}
+  #history{margin-top:2rem;background:var(--surface);border:1px solid var(--line);border-radius:0.625rem;padding:1rem 1.25rem}
+  #history>summary{font-size:1.625rem;font-weight:600;color:var(--text);list-style-position:inside}
+  .vmeta{font:1.375rem var(--mono);color:var(--muted);margin:0.875rem 0 0.375rem;display:flex;gap:1.25rem;flex-wrap:wrap}
+  .vmeta b{color:var(--text);font-weight:500}
+  .rel{border-top:1px solid var(--line);padding:0.875rem 0 0.375rem}
+  .rel .rh{display:flex;gap:0.75rem;align-items:baseline;flex-wrap:wrap}
+  .rel .rv{font:600 1.75rem var(--mono)} .rel .rd{font:1.375rem var(--mono);color:var(--faint)}
+  .rel ul{margin:0.5rem 0 0;padding-left:1.75rem;color:var(--muted);font-size:1.625rem}
+  .rel li{margin-bottom:0.25rem} .rel code{font:1.375rem var(--mono);color:var(--text);overflow-wrap:anywhere}
+  .cur{font:500 1.25rem var(--mono);color:var(--clear);border:1px solid color-mix(in srgb,var(--clear) 45%,var(--line));border-radius:999px;padding:1px 0.625rem}
+  .warnv{color:var(--warn);font:1.375rem var(--mono)}
+  .controls{flex-direction:column;align-items:stretch;gap:0.875rem}
+  #locs{display:flex;flex-direction:column;gap:1rem}
+  .lrow{position:relative;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:end;padding-left:3.5rem}
+  .lrow+.lrow{border-top:1px solid var(--line);padding-top:1rem}
+  .lrow>.lnum{position:absolute;left:0;top:2.6rem}
+  .lrow+.lrow>.lnum{top:3.6rem}
+  .lrow .place{flex-basis:100%;margin:0.125rem 0 0 2px;min-height:0}
+  .lnum,.pnum{display:inline-flex;align-items:center;justify-content:center;width:2.5rem;height:2.5rem;flex:none;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font:600 1.375rem var(--mono);color:var(--text)}
+  .pnum{margin-right:0.625rem;vertical-align:middle}
+  .rm{background:transparent;color:var(--muted);border:1px solid var(--line);font:500 1.5rem var(--sans);padding:0.75rem 1rem}
+  .rm:hover{color:var(--danger);border-color:var(--danger);opacity:1}
+  .actions{display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center}
+  #add{background:var(--surface-2);color:var(--text);border:1px solid var(--line)}
+  #add:disabled{cursor:not-allowed}
+  .lcount{font:1.375rem var(--mono);color:var(--muted)}
+  .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr));gap:0.625rem;margin-bottom:1.75rem}
+  .tile{display:flex;flex-direction:column;gap:0.25rem;text-align:left;background:var(--surface);color:var(--text);border:1px solid var(--line);border-left:0.3rem solid var(--faint);border-radius:0.5rem;padding:0.75rem 0.875rem;font:500 1.625rem var(--sans)}
+  .tile:hover{opacity:1;background:var(--surface-2)}
+  .tile .tn{display:flex;align-items:center;font-weight:600;min-width:0}
+  .tile .tn span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tile .ts{font:1.375rem var(--mono);color:var(--muted)}
+  .tile.alert{border-left-color:var(--danger);background:color-mix(in srgb,var(--danger) 10%,var(--surface))} .tile.alert .ts{color:var(--danger)}
+  .tile.clear{border-left-color:var(--clear)} .tile.clear .ts{color:var(--clear)}
+  .lpanel{margin-bottom:2.5rem;scroll-margin-top:1rem}
+  body.multi .lpanel+.lpanel{border-top:2px solid var(--line);padding-top:2rem}
+  @media (max-width:600px){.toggle{margin-left:0}label{flex:1 1 40%;min-width:0}.loc{flex-basis:100%}.toggle{flex-basis:100%}.lrow{padding-left:0}.lrow>.lnum,.lrow+.lrow>.lnum{position:static}.lrow>.lnum{margin-bottom:0.25rem}.lrow .loc{flex-basis:calc(100% - 3rem)}.rm{flex-basis:100%}input{width:100%;padding:0.75rem 0.5rem}.loc{width:100%}.loc input{width:100%}}
 </style>
 </head>
 <body>
@@ -59,29 +112,43 @@
   <header>
     <div>
       <h1>Aviation Weather Hazard Check</h1>
-      <div class="sub">NWS warnings, SIGMETs, AIRMETs and Center Weather Advisories for one point</div>
+      <div class="sub">Official warnings, SIGMETs, AIRMETs and advisories for up to 4 locations at once, with international and backup sources</div>
+    </div>
+    <div class="hright">
+      <div class="tsize" role="group" aria-label="Text size">
+        <button type="button" id="ts-down" aria-label="Smaller text" title="Smaller text">A−</button>
+        <output id="ts-val" aria-live="polite">100%</output>
+        <button type="button" id="ts-up" aria-label="Larger text" title="Larger text">A+</button>
+      </div>
+      <button type="button" class="vbadge" id="vbadge" aria-controls="history" title="Show version history"></button>
     </div>
   </header>
 
   <form class="controls" id="form">
-    <label class="loc">City or airport code<input id="icao" value="KJFK" placeholder="Denver, CO · JFK · KDEN" autocomplete="off" aria-describedby="placename"></label>
-    <label>Latitude<input id="lat" value="40.6413"></label>
-    <label>Longitude<input id="lon" value="-73.7781"></label>
-    <button id="go" type="submit">Check now</button>
-    <label class="toggle"><input type="checkbox" id="auto" checked> Auto-refresh every 15 min</label>
+    <div id="locs"></div>
+    <datalist id="ap-list"></datalist>
+    <div class="actions">
+      <button id="add" type="button">+ Add location</button>
+      <span class="lcount" id="lcount" aria-live="polite"></span>
+      <button id="go" type="submit">Check now</button>
+      <label class="toggle"><input type="checkbox" id="auto" checked> Auto-refresh every 15 min</label>
+    </div>
   </form>
-  <div class="place" id="placename" aria-live="polite">KJFK · NEW YORK/JOHN F KENNEDY INTL</div>
 
-  <div class="banner idle" id="banner"><div class="big">Checking…</div><div class="meta" id="checked"></div></div>
+  <div class="summary" id="summary" hidden aria-label="Summary of all locations"></div>
+  <div id="results"></div>
 
-  <section><h2><span>NWS active alerts</span><span id="n-nws"></span></h2><div id="nws"></div></section>
-  <section><h2><span>SIGMETs / AIRMETs</span><span id="n-sig"></span></h2><div id="sig"></div></section>
-  <section><h2><span>Center Weather Advisories</span><span id="n-cwa"></span></h2><div id="cwa"></div></section>
+  <details id="history">
+    <summary>Version history</summary>
+    <div class="vmeta" id="vmeta"></div>
+    <div id="releases"><div class="empty">Loading release history…</div></div>
+  </details>
 
   <footer>
+    <div class="ver" id="ver"></div>
     Data: <a href="https://www.weather.gov/documentation/services-web-api" target="_blank" rel="noopener">api.weather.gov</a> and
     <a href="https://aviationweather.gov/data/api/" target="_blank" rel="noopener">aviationweather.gov Data API</a>.
-    City search by <a href="https://open-meteo.com/en/docs/geocoding-api" target="_blank" rel="noopener">Open-Meteo</a>. Not an official briefing source; always get a full briefing before flight.
+    Backups: <a href="https://api.weather.gc.ca/" target="_blank" rel="noopener">Environment Canada</a>, <a href="https://meteoalarm.org" target="_blank" rel="noopener">MeteoAlarm</a>, <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> forecast. City search by <a href="https://open-meteo.com/en/docs/geocoding-api" target="_blank" rel="noopener">Open-Meteo</a>; airport names from <a href="https://ourairports.com/data/" target="_blank" rel="noopener">OurAirports</a>. Not an official briefing source; always get a full briefing before flight.
   </footer>
 </div>
 
@@ -89,12 +156,16 @@
 const LOCAL = new Set(['localhost','127.0.0.1','[::1]']);
 const raw = window.__API_BASE__;
 const API = raw.startsWith('__PORT_') ? (LOCAL.has(location.hostname) || location.protocol==='file:' ? 'http://localhost:8000' : null) : raw;
+// Standalone copy (standalone/index.html): the API base is a full URL to a relay server on another site.
+const REMOTE = /^https?:\/\//.test(raw) && new URL(raw).host !== location.host;
+const APP_VERSION = '1.8.0';   // keep in sync with VERSION (tools/release.py does this)
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const fmtT = v => { if (v==null) return '—'; const d = typeof v==='number' ? new Date(v*1000) : new Date(v); return isNaN(d) ? String(v) : d.toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',timeZoneName:'short'}); };
+const fmtT = v => { if (v==null) return '—'; const d = typeof v==='number' ? new Date(v*1000) : new Date(v); return isNaN(d) ? esc(v) : d.toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',timeZoneName:'short'}); };
 
 // Ray-casting point-in-polygon (same logic as the Python script)
 function inside(lat, lon, coords){
+  if (Array.isArray(coords[0])) return coords.some(c => inside(lat, lon, c));   // multi-polygon SIGMETs
   const p = coords.map(c => [parseFloat(c.lat), parseFloat(c.lon)]);
   let hit = false;
   for (let i=0, j=p.length-1; i<p.length; j=i++){
@@ -104,6 +175,8 @@ function inside(lat, lon, coords){
   return hit;
 }
 
+const STATIC = !!window.__STATIC_DATA__;   // Cloudflare Pages build: airport data and version history are static files
+
 async function awc(product, params='format=json'){
   if (!API) throw new Error('Aviation data proxy is not configured');
   const r = await fetch(`${API}/awc/${product}?${params}`, {credentials:'same-origin'});
@@ -111,63 +184,262 @@ async function awc(product, params='format=json'){
   const t = await r.text(); return t.trim() ? JSON.parse(t) : [];
 }
 
+// ---- Official warnings ----
+// NWS (US). Returns {outside:true} when the point is outside NWS coverage (HTTP 400 out of bounds).
 async function nws(lat, lon){
-  const r = await fetch(`https://api.weather.gov/alerts/active?point=${lat},${lon}`, {headers:{Accept:'application/geo+json'}});
+  const r = await fetch(`https://api.weather.gov/alerts/active?point=${lat.toFixed(4)},${lon.toFixed(4)}`, {headers:{Accept:'application/geo+json'}});
+  if (r.status === 400){ const j = await r.json().catch(()=>({})); if (/out of bounds/i.test(j.detail||'')) return {outside:true, items:[]}; }
   if (!r.ok) throw new Error(`NWS returned ${r.status}`);
-  return (await r.json()).features.map(f => f.properties);
+  return {items:(await r.json()).features.map(f => { const p=f.properties; return {event:p.event, severity:p.severity, headline:p.headline, expires:p.expires, text:`${p.description||''}\n\n${p.instruction||''}`, src:'NWS'}; })};
+}
+// Environment and Climate Change Canada (official, CORS-enabled)
+async function eccc(lat, lon){
+  const d=0.05, r = await fetch(`https://api.weather.gc.ca/collections/weather-alerts/items?f=json&lang=en&limit=100&bbox=${lon-d},${lat-d},${lon+d},${lat+d}`);
+  if (!r.ok) throw new Error(`Environment Canada returned ${r.status}`);
+  const seen = new Set();
+  return (await r.json()).features.filter(f => { const p=f.properties, k=(p.alert_name_en||'')+(p.publication_datetime||''); if (seen.has(k)) return false; seen.add(k);
+      return !p.expiration_datetime || new Date(p.expiration_datetime) > new Date(); })
+    .map(f => { const p=f.properties; return {event:p.alert_name_en||p.alert_short_name_en, severity:p.risk_colour_en||p.alert_type||'', headline:p.feature_name_en||'', expires:p.expiration_datetime, text:p.alert_text_en||'', src:'Environment Canada'}; });
+}
+// MeteoAlarm (EUMETNET, official national services in Europe) via backend relay
+const MA = {AT:'austria',BE:'belgium',BA:'bosnia-herzegovina',BG:'bulgaria',HR:'croatia',CY:'cyprus',CZ:'czechia',DK:'denmark',EE:'estonia',FI:'finland',FR:'france',DE:'germany',GR:'greece',HU:'hungary',IS:'iceland',IE:'ireland',IL:'israel',IT:'italy',LV:'latvia',LT:'lithuania',LU:'luxembourg',MT:'malta',MD:'moldova',ME:'montenegro',NL:'netherlands',MK:'republic-of-north-macedonia',NO:'norway',PL:'poland',PT:'portugal',RO:'romania',RS:'serbia',SK:'slovakia',SI:'slovenia',ES:'spain',SE:'sweden',CH:'switzerland',GB:'united-kingdom',UA:'ukraine'};
+// Region-name matching (used only when a warning has no polygon): compare the core place phrase exactly,
+// so "Sur de Ávila" matches Ávila but "La Palma" (Canaries) does not match Palma (Mallorca).
+const STOP = /\b(district|county|kreis|landkreis|stadt|province|provincia|region|of|the|and|und|y|de|del|city|municipality|kommune|norte|sur|este|oeste|nordeste|noroeste|sudeste|suroeste|north|south|east|west|northern|southern|eastern|western|central|sistema|cumbres|sierra|litoral|interior|costa|coast|parts|upper|lower|nordlige|sorlige|deler)\b/g;
+const core = t => (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(STOP,' ').replace(/\s+/g,' ').trim();
+// The Python server sends a trimmed list; the Cloudflare proxy passes the raw feed through, so trim it here.
+function trimMA(raw){
+  if (Array.isArray(raw)) return raw;
+  const now = Date.now(), out = [];
+  for (const w of raw?.warnings || []){
+    const infos = w.alert?.info || [];
+    const info = infos.find(i => String(i.language||'').toLowerCase().startsWith('en')) || infos[0];
+    if (!info) continue;
+    if (info.expires && new Date(info.expires) < now) continue;
+    out.push({id:w.alert.identifier, event:info.event, severity:info.severity, headline:info.headline,
+      description:(info.description||'').slice(0,1500), onset:info.onset, expires:info.expires, sender:info.senderName,
+      web:info.web, areas:(info.area||[]).map(a => ({desc:a.areaDesc||'', polygon:a.polygon||[]}))});
+  }
+  return out;
+}
+async function meteoalarm(lat, lon, geo){
+  const slug = MA[geo.countryCode]; if (!API) throw new Error('relay not configured');
+  const r = await fetch(`${API}/meteoalarm/${slug}`, {credentials:'same-origin'});
+  if (!r.ok) throw new Error(`MeteoAlarm returned ${r.status}`);
+  const names = new Set((geo.names||[]).map(core).filter(n => n.length >= 3));
+  const now = Date.now(), soon = now + 6*3600e3, seen = new Set(), out = [];
+  for (const w of trimMA(await r.json())){
+    if (/minor/i.test(w.severity||'')) continue;                         // green / no-risk level
+    if (w.onset && new Date(w.onset) > soon) continue;                    // only current or starting within 6 h
+    if (w.expires && new Date(w.expires) < now) continue;
+    let how = null;
+    for (const a of w.areas){
+      if (a.polygon.length){ if (a.polygon.some(pg => inside(lat, lon, pg.trim().split(/\s+/).map(pt => { const [la,lo]=pt.split(','); return {lat:la, lon:lo}; })))) { how='polygon'; break; } }
+      else if (names.has(core(a.desc))) { how='region'; break; }
+    }
+    if (!how) continue;
+    const key = (w.event||'') + '|' + (w.severity||'');
+    if (seen.has(key)) continue; seen.add(key);
+    out.push({event:w.event, severity:w.severity, headline:`${w.headline||''}${how==='region'?' (matched by region name)':''}`, expires:w.expires, text:w.description, src:w.sender||'MeteoAlarm'});
+  }
+  return out;
+}
+// Country + admin names for the point (BigDataCloud free client-side reverse geocoding)
+const geoCache = {};
+async function reverseGeo(lat, lon){
+  const k = lat.toFixed(2)+','+lon.toFixed(2); if (geoCache[k]) return geoCache[k];
+  const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+  if (!r.ok) throw new Error('reverse geocode failed');
+  const d = await r.json();
+  return geoCache[k] = {countryCode:d.countryCode, country:d.countryName, names:[d.city, d.locality, d.principalSubdivision, ...((d.localityInfo?.administrative)||[]).map(a=>a.name)].filter(Boolean)};
 }
 
-function skel(id){ $(id).innerHTML = '<div class="skel"></div>'; $('n-'+id).textContent=''; }
-function render(id, items, card, emptyMsg){
-  $('n-'+id).textContent = items.length ? `${items.length} active` : '';
-  $(id).innerHTML = items.length ? items.map(card).join('') : `<div class="empty">${emptyMsg}</div>`;
+// ---- Backup: Open-Meteo model forecast (global, no key) ----
+const WMO_CODES = {95:'Thunderstorm',96:'Thunderstorm with hail',99:'Thunderstorm with heavy hail',56:'Freezing drizzle (icing)',57:'Dense freezing drizzle (icing)',66:'Freezing rain (icing)',67:'Heavy freezing rain (icing)',75:'Heavy snow',86:'Heavy snow showers',65:'Heavy rain',82:'Violent rain showers',45:'Fog',48:'Freezing fog (icing)'};
+async function modelHazards(lat, lon){
+  const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weather_code,wind_speed_10m,wind_gusts_10m,visibility,cape,cloud_cover_low&wind_speed_unit=kn&forecast_hours=3&timezone=UTC`);
+  if (!r.ok) throw new Error(`Open-Meteo returned ${r.status}`);
+  const h = (await r.json()).hourly, out = [], add = (event, detail, sev) => out.find(o=>o.event===event) || out.push({event, headline:detail, severity:sev, src:'Open-Meteo model'});
+  h.time.forEach((t,i) => {
+    const when = fmtT(t+'Z');
+    if (WMO_CODES[h.weather_code[i]]) add(WMO_CODES[h.weather_code[i]], `Forecast ${when}`, /Thunder|freezing|Freezing/.test(WMO_CODES[h.weather_code[i]]) ? 'Severe' : 'Moderate');
+    if (h.wind_gusts_10m[i] >= 35) add('Strong surface gusts', `Gusts ${Math.round(h.wind_gusts_10m[i])} kt at ${when}`, h.wind_gusts_10m[i] >= 50 ? 'Severe' : 'Moderate');
+    else if (h.wind_speed_10m[i] >= 25) add('Strong surface wind', `Sustained ${Math.round(h.wind_speed_10m[i])} kt at ${when}`, 'Moderate');
+    const sm = h.visibility[i]/1609.34;
+    if (sm < 1) add('Low visibility (LIFR)', `${sm.toFixed(1)} sm at ${when}`, 'Severe');
+    else if (sm < 3) add('Reduced visibility (IFR)', `${sm.toFixed(1)} sm at ${when}`, 'Moderate');
+    if (h.cape[i] >= 1500) add('Convective potential', `CAPE ${Math.round(h.cape[i])} J/kg at ${when}`, 'Moderate');
+  });
+  return out;
 }
-function fail(id, e){ $(id).innerHTML = `<div class="err">Could not load: ${esc(e.message)}</div>`; }
+
+// ---- Locations: up to 4 checked together. Each has an input row and a results panel. ----
+const MAX_LOCS = 4;
+const locs = [];
+let locSeq = 0;
+const Q = (l, sel) => l.el.querySelector(sel);
+const P = (l, cls) => l.panel.querySelector('.' + cls);
+
+function skel(l, k){ P(l,k).innerHTML = '<div class="skel"></div>'; P(l,'n-'+k).textContent=''; }
+function render(l, k, items, card, emptyMsg){
+  P(l,'n-'+k).textContent = items.length ? `${items.length} active` : '';
+  P(l,k).innerHTML = items.length ? items.map(card).join('') : `<div class="empty">${emptyMsg}</div>`;
+}
+function fail(l, k, e){ P(l,k).innerHTML = `<div class="err">Could not load: ${esc(e.message)}</div>`; }
+function setBanner(l, cls, text, meta=''){
+  const b = P(l,'banner'); b.className = 'banner ' + cls;
+  P(l,'btxt').textContent = text; P(l,'meta').textContent = meta;
+  l.res = {cls, text};
+}
 
 const nwsCard = a => {
-  const sev = /Extreme|Severe/.test(a.severity) ? 'sev-high' : '';
-  return `<div class="card ${sev}"><div class="t">${esc(a.event)}<span class="tag">${esc(a.severity)}</span></div>
-    <div class="d">${esc(a.headline||'')}</div><div class="d">Expires ${fmtT(a.expires)}</div>
-    <details><summary>Full text</summary><pre>${esc(a.description||'')}\n\n${esc(a.instruction||'')}</pre></details></div>`;
+  const sev = /Extreme|Severe|red|Red/.test(a.severity) ? 'sev-high' : '';
+  return `<div class="card ${sev}"><div class="t">${esc(a.event)}${a.severity?`<span class="tag">${esc(a.severity)}</span>`:''}<span class="tag">${esc(a.src)}</span></div>
+    <div class="d">${esc(a.headline||'')}</div>${a.expires?`<div class="d">Expires ${fmtT(a.expires)}</div>`:''}
+    ${a.text?`<details><summary>Full text</summary><pre>${esc(a.text)}</pre></details>`:''}</div>`;
 };
+const modelCard = a => `<div class="card sev-model"><div class="t">${esc(a.event)}<span class="tag">${esc(a.severity)}</span><span class="tag">model</span></div><div class="d">${esc(a.headline)}</div></div>`;
 const sigCard = s => {
-  const sev = (s.airSigmetType||'').includes('SIGMET') ? 'sev-high' : '';
-  const alt = (s.altitudeLow1!=null||s.altitudeHi1!=null) ? `${s.altitudeLow1??'SFC'}–${s.altitudeHi1??'?'} ft` : '';
-  return `<div class="card ${sev}"><div class="t">${esc(s.hazard)}<span class="tag">${esc(s.airSigmetType)}</span>${alt?`<span class="tag">${alt}</span>`:''}</div>
+  const intl = !!s.firId;
+  const sev = intl || (s.airSigmetType||'').includes('SIGMET') ? 'sev-high' : '';
+  const lo = intl ? s.base : s.altitudeLow1, hi = intl ? s.top : s.altitudeHi1;
+  const alt = (lo!=null||hi!=null) ? esc(`${lo||'SFC'}–${hi??'?'} ft`) : '';
+  const type = intl ? `Intl SIGMET · ${s.firName||s.firId}` : s.airSigmetType;
+  return `<div class="card ${sev}"><div class="t">${esc(s.hazard)}${s.qualifier?` <span class="d" style="margin:0">${esc(s.qualifier)}</span>`:''}<span class="tag">${esc(type)}</span>${alt?`<span class="tag">${alt}</span>`:''}</div>
     <div class="d">Valid ${fmtT(s.validTimeFrom)} → ${fmtT(s.validTimeTo)}</div>
-    <details><summary>Raw text</summary><pre>${esc(s.rawAirSigmet||'')}</pre></details></div>`;
+    <details><summary>Raw text</summary><pre>${esc(s.rawAirSigmet||s.rawSigmet||'')}</pre></details></div>`;
 };
 const cwaCard = c => `<div class="card"><div class="t">${esc(c.hazard)}<span class="tag">${esc(c.cwsu)} ${esc(c.name||'')}</span></div>
     <div class="d">Valid ${fmtT(c.validTimeFrom)} → ${fmtT(c.validTimeTo)}</div>
     <details><summary>Raw text</summary><pre>${esc(c.cwaText||'')}</pre></details></div>`;
 
-async function check(){
-  const lat = parseFloat($('lat').value), lon = parseFloat($('lon').value);
-  if (isNaN(lat)||isNaN(lon)){ $('banner').className='banner alert'; $('banner').firstElementChild.textContent='Enter a valid latitude and longitude'; return; }
-  $('go').disabled = true; ['nws','sig','cwa'].forEach(skel);
-  $('banner').className='banner idle'; $('banner').firstElementChild.textContent='Checking…';
-  let total = 0, errors = 0;
-  const jobs = [
-    nws(lat,lon).then(a => { total+=a.length; render('nws', a, nwsCard, 'No active NWS alerts at this point.'); }).catch(e => { errors++; fail('nws', e); }),
-    awc('airsigmet').then(d => { const m = d.filter(s => s.coords?.length && inside(lat,lon,s.coords)); total+=m.length; render('sig', m, sigCard, 'No SIGMETs or AIRMETs cover this point.'); }).catch(e => { errors++; fail('sig', e); }),
-    awc('cwa').then(d => { const m = d.filter(c => c.coords?.length && inside(lat,lon,c.coords)); total+=m.length; render('cwa', m, cwaCard, 'No Center Weather Advisories cover this point.'); }).catch(e => { errors++; fail('cwa', e); }),
-  ];
-  await Promise.all(jobs);
-  const b = $('banner');
-  b.className = 'banner ' + (total ? 'alert' : errors ? 'idle' : 'clear');
-  b.firstElementChild.textContent = total ? `${total} active hazard${total>1?'s':''} at ${placeLabel||'this point'}`
-    : errors ? 'Some sources failed — results incomplete' : `No active hazards at ${placeLabel||'this point'}`;
-  $('checked').textContent = `Checked ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} · ${lat.toFixed(3)}, ${lon.toFixed(3)}`;
-  $('go').disabled = false;
+const settle = p => p.then(v => ({ok:true, v}), e => ({ok:false, e}));
+function chips(l, list){ P(l,'sources').innerHTML = list.map(([name, st]) => `<span class="chip ${st}">${esc(name)}${st==='bad'?' · unavailable':st==='backup'?' · backup in use':''}</span>`).join(''); }
+
+// Check one location. The SIGMET/AIRMET/CWA feeds are fetched once per run and shared by all locations.
+async function check(l, shared){
+  const lat = parseFloat(Q(l,'.lat').value), lon = parseFloat(Q(l,'.lon').value);
+  if (isNaN(lat)||isNaN(lon)){ setBanner(l, 'alert', 'Enter a valid latitude and longitude'); return; }
+  const where = l.label || 'this point';
+  ['nws','sig','cwa'].forEach(k => skel(l,k)); P(l,'sources').innerHTML='';
+  setBanner(l, 'idle', `Checking ${where}…`);
+  const [rN, rG] = await Promise.all([settle(nws(lat,lon)), settle(reverseGeo(lat,lon))]);
+  const {rS, rI, rC} = await shared;
+  const status = []; let total = 0, gaps = 0, backup = false;
+
+  // Official warnings: NWS first; outside the US (or if NWS is down) use the national service for that country.
+  let official = null, officialName = 'NWS';
+  if (rN.ok && !rN.v.outside){ official = rN.v.items; status.push(['NWS','ok']); }
+  else {
+    if (!rN.ok) status.push(['NWS','bad']);
+    const geo = rG.ok ? rG.v : null, cc = geo?.countryCode;
+    const alt = cc==='CA' ? ['Environment Canada', () => eccc(lat,lon)] : (cc && MA[cc]) ? ['MeteoAlarm', () => meteoalarm(lat,lon,geo)] : null;
+    if (alt){ const r = await settle(alt[1]()); officialName = alt[0]; if (r.ok){ official = r.v; status.push([alt[0], rN.ok ? 'ok' : 'backup']); } else status.push([alt[0],'bad']); }
+  }
+  P(l,'h-nws').textContent = `Official weather warnings · ${official ? officialName : 'no source'}`;
+  if (official){ total += official.length; render(l, 'nws', official, nwsCard, `No active ${officialName} warnings at this point.`); }
+  else { gaps++; P(l,'n-nws').textContent=''; P(l,'nws').innerHTML = `<div class="err">${rN.ok ? 'No official warning feed is connected for this country.' : 'NWS is unavailable and no other official feed covers this point.'} See the model backup below.</div>`; }
+
+  // SIGMETs / AIRMETs: US (airsigmet) + international (isigmet)
+  if (rS.ok || rI.ok){
+    const us = rS.ok ? rS.v.filter(s => s.coords?.length && inside(lat,lon,s.coords)) : [];
+    const intl = rI.ok ? rI.v.filter(s => s.icaoId!=='KKCI' && s.coords?.length && inside(lat,lon,s.coords)) : [];
+    const m = us.concat(intl); total += m.length;
+    render(l, 'sig', m, sigCard, 'No SIGMETs or AIRMETs cover this point.');
+    status.push(['AWC SIGMET/AIRMET', rS.ok && rI.ok ? 'ok' : 'bad']);
+  } else { gaps++; fail(l, 'sig', rS.e); status.push(['AWC SIGMET/AIRMET','bad']); }
+  if (rC.ok){ const m = rC.v.filter(c => c.coords?.length && inside(lat,lon,c.coords)); total+=m.length; render(l, 'cwa', m, cwaCard, 'No Center Weather Advisories cover this point.'); status.push(['AWC CWA','ok']); }
+  else { fail(l, 'cwa', rC.e); status.push(['AWC CWA','bad']); if (!rS.ok) gaps++; }
+
+  // Backup model forecast whenever an official/aviation source is missing
+  const needModel = gaps > 0 || !rN.ok || (!rS.ok && !rI.ok);
+  P(l,'model-sec').hidden = !needModel;
+  if (needModel){
+    skel(l,'model'); backup = true;
+    const r = await settle(modelHazards(lat,lon));
+    if (r.ok){ total += r.v.length; render(l, 'model', r.v, modelCard, 'Model shows no thunderstorms, icing, strong gusts or low visibility in the next 3 hours.'); status.push(['Open-Meteo','backup']); }
+    else { fail(l, 'model', r.e); status.push(['Open-Meteo','bad']); }
+  }
+  chips(l, status);
+
+  const anyBad = status.some(s => s[1]==='bad');
+  setBanner(l, total ? 'alert' : anyBad && !backup ? 'idle' : 'clear',
+    total ? `${total} active hazard${total>1?'s':''} at ${where}`
+          : `No active hazards at ${where}${backup ? ' (backup source in use)' : anyBad ? ' — some sources failed' : ''}`,
+    `Checked ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} · ${lat.toFixed(3)}, ${lon.toFixed(3)}`);
+  l.res.short = total ? `${total} active hazard${total>1?'s':''}` : backup ? 'No hazards (backup source)' : anyBad ? 'No hazards · some sources failed' : 'No active hazards';
 }
 
 const STATES={AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',DC:'District of Columbia',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming',PR:'Puerto Rico'};
 const ABBR=Object.fromEntries(Object.entries(STATES).map(([k,v])=>[v,k]));
-let placeLabel='KJFK';
 
 async function airport(code){
   try { const a = await awc('airport', `ids=${encodeURIComponent(code)}&format=json`);
         return a[0]?.lat!=null ? a[0] : null; } catch { return null; }
+}
+// Airport search by name (OurAirports data via the backend). Suggestions appear as you type.
+const AIRPORT_WORDS = /\b(airport|international|intl|airfield|field|aerodrome|aeropuerto|aeroport|aeroporto|flughafen|lufthavn)\b/;
+const normTxt = t => (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/['’]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+const SUG = {};
+const apLabel = a => `${a.code} · ${a.name}${a.city?` (${a.city}, ${a.country})`:` (${a.country})`}`;
+// Static mode: airports are split into small files by the first two letters of each word or code
+// (data/airports/<xx>.json, built by tools/build_web.py), and searched here with the same rules as the server.
+const GENERIC = new Set('airport airports international intl int airfield field aerodrome aeropuerto aeroport aeroporto flughafen lufthavn regional municipal the of de del da'.split(' '));
+const SHARDS = {};
+function shard(key){
+  if (!/^[a-z0-9]{2}$/.test(key)) return Promise.resolve([]);
+  return SHARDS[key] ||= fetch(`data/airports/${key}.json`).then(r => r.ok ? r.json() : []).catch(() => { delete SHARDS[key]; return []; })
+    .then(rows => rows.map(([code,iata,name,city,country,region,lat,lon,rank,kw,ident,gps,local]) => ({
+      rank, nameT: normTxt(name).split(' '), otherT: normTxt([city,kw,iata,code,ident].join(' ')).split(' '),
+      codes: new Set([code,ident,iata,gps,local].filter(Boolean).map(c => c.toUpperCase())),
+      rec: {code, iata, name, city, country, region, lat, lon, type: ['large_airport','medium_airport','small_airport'][Math.floor(rank)]}})));
+}
+async function staticByCode(code){
+  const Qc = code.trim().toUpperCase(), rows = await shard(Qc.toLowerCase().slice(0,2));
+  const hits = rows.filter(r => r.codes.has(Qc)).sort((a,b) => (a.rank+(Qc===a.rec.code?0:1)) - (b.rank+(Qc===b.rec.code?0:1)) || a.rec.name.localeCompare(b.rec.name));
+  return hits[0]?.rec || null;
+}
+async function staticSearch(q, limit){
+  const words = normTxt(q).split(' ').filter(Boolean);
+  let toks = words.filter(w => !GENERIC.has(w)); if (!toks.length) toks = words;
+  if (!toks.length || toks.join(' ').length < 2) return [];
+  const key = [...toks].sort((a,b) => b.length - a.length)[0];
+  if (key.length < 2) return [];
+  const Qc = q.trim().toUpperCase(), hits = [];
+  for (const r of await shard(key.slice(0,2))){
+    if (r.codes.has(Qc)){ hits.push([-100 + r.rank + (Qc===r.rec.code?0:1), r.rec]); continue; }
+    const inName = toks.every(w => r.nameT.some(t => t.startsWith(w)));
+    if (!inName && !toks.every(w => r.nameT.some(t => t.startsWith(w)) || r.otherT.some(t => t.startsWith(w)))) continue;
+    const exact = toks.filter(w => r.nameT.includes(w)).length === toks.length;
+    hits.push([r.rank*10 + (inName?0:4) + (exact?0:1), r.rec]);
+  }
+  hits.sort((a,b) => a[0]-b[0] || (a[1].name < b[1].name ? -1 : a[1].name > b[1].name ? 1 : 0));
+  return hits.slice(0, limit).map(h => h[1]);
+}
+async function airportSearch(q, limit=8){
+  if (STATIC) return staticSearch(q, limit).catch(() => []);
+  if (!API) return [];
+  try { const r = await fetch(`${API}/airports?q=${encodeURIComponent(q)}&limit=${limit}`, {credentials:'same-origin'}); return r.ok ? await r.json() : []; }
+  catch { return []; }
+}
+// One suggestion list is shared by all location boxes (only one is typed in at a time).
+let sugTimer = null, sugSeq = 0;
+function suggest(inp){
+  clearTimeout(sugTimer);
+  const q = inp.value.trim();
+  if (q.length < 3 || SUG[q]) return;
+  sugTimer = setTimeout(async () => {
+    const seq = ++sugSeq, list = await airportSearch(q);
+    if (seq !== sugSeq) return;                                  // a newer keystroke won
+    $('ap-list').innerHTML = list.map(a => { const v = apLabel(a); SUG[v] = a; return `<option value="${esc(v)}"></option>`; }).join('');
+  }, 250);
+}
+function setLatLon(l, lat, lon){ Q(l,'.lat').value = (+lat).toFixed(4); Q(l,'.lon').value = (+lon).toFixed(4); }
+function useAirportRecord(l, a, say){
+  setLatLon(l, a.lat, a.lon);
+  l.label = /^[A-Z]{4}$/.test(a.code) ? a.code : a.name;
+  say(`${a.code}${a.iata?' / '+a.iata:''} · ${a.name}${a.city?', '+a.city:''}${a.country?' ('+a.country+')':''}`);
+  return true;
 }
 async function city(text){
   const [name, region] = text.split(',').map(x=>x.trim());
@@ -183,485 +455,181 @@ async function city(text){
   return res[0] || null;
 }
 
-// Accepts: 4-letter ICAO (KDEN), 3-letter FAA/IATA (DEN, JFK), or a city ("Denver", "Portland, ME")
-async function resolveLocation(){
-  const raw = $('icao').value.trim();
+// Accepts: 4-letter ICAO (KDEN), 3-letter FAA/IATA (DEN, JFK), an airport name (Heathrow) or a city ("Denver", "Portland, ME")
+async function resolveLocation(l){
+  const raw = Q(l,'.q').value.trim();
   if (!raw) return true;
-  const say = t => $('placename').textContent = t;
+  const say = t => Q(l,'.place').textContent = t;
   say('Looking up ' + raw + '…');
+  if (SUG[raw]) return useAirportRecord(l, SUG[raw], say);        // picked from the suggestion list
   const code = raw.toUpperCase();
   let ap = null;
+  if (/^[A-Z0-9]{3,4}$/.test(code) && STATIC){
+    const hit = await staticByCode(code).catch(() => null); if (hit) return useAirportRecord(l, hit, say);
+  } else if (/^[A-Z0-9]{3,4}$/.test(code) && API){                // ICAO / IATA / FAA code in the airport list
+    try { const r = await fetch(`${API}/airports?code=${encodeURIComponent(code)}`, {credentials:'same-origin'});
+          const hit = r.ok ? (await r.json())[0] : null; if (hit) return useAirportRecord(l, hit, say); } catch {}
+  }
   if (/^[A-Z0-9]{4}$/.test(code)) ap = await airport(code);
   else if (/^[A-Z0-9]{3}$/.test(code)) ap = await airport('K'+code) || await airport('P'+code) || await airport(code);
-  if (ap){
-    $('lat').value=(+ap.lat).toFixed(4); $('lon').value=(+ap.lon).toFixed(4);
-    placeLabel = ap.icaoId; say(`${ap.icaoId} · ${(ap.name||'').trim()}`); return true;
+  if (ap){ setLatLon(l, ap.lat, ap.lon); l.label = ap.icaoId; say(`${ap.icaoId} · ${(ap.name||'').trim()}`); return true; }
+  // Not a code: look up both an airport by name and a city, then pick the likelier meaning.
+  const [hits, c] = await Promise.all([airportSearch(raw, 1), city(raw).catch(() => null)]);
+  const top = hits[0], wantsAirport = AIRPORT_WORDS.test(normTxt(raw));
+  const bigCityMatch = c && normTxt(c.name) === normTxt(raw.split(',')[0]) && (c.population||0) >= 100000;
+  const preferCity = !wantsAirport && (raw.includes(',') || bigCityMatch);
+  if (top && !preferCity) return useAirportRecord(l, top, say);
+  if (c){
+    setLatLon(l, c.latitude, c.longitude);
+    const reg = c.country_code==='US' ? (ABBR[c.admin1]||c.admin1) : [c.admin1,c.country].filter(Boolean).join(', ');
+    l.label = `${c.name}${reg?', '+reg:''}`; say(`${l.label} · city center`); return true;
   }
-  try {
-    const c = await city(raw);
-    if (c){
-      $('lat').value=c.latitude.toFixed(4); $('lon').value=c.longitude.toFixed(4);
-      const reg = c.country_code==='US' ? (ABBR[c.admin1]||c.admin1) : [c.admin1,c.country].filter(Boolean).join(', ');
-      placeLabel = `${c.name}${reg?', '+reg:''}`; say(`${placeLabel} · city center`); return true;
-    }
-  } catch {}
-  say(''); $('banner').className='banner alert';
-  $('banner').firstElementChild.textContent = `Couldn't find "${raw}". Try a city like "Denver, CO" or an airport code like DEN or KDEN.`;
+  if (top) return useAirportRecord(l, top, say);
+  say('');
+  setBanner(l, 'alert', `Couldn't find "${raw}". Try a city like "Denver, CO", an airport name like "Heathrow", or a code like DEN or KDEN.`);
+  l.res.short = 'Location not found';
   return false;
 }
 
-let lastLoc = $('icao').value;
-$('form').addEventListener('submit', async e => {
-  e.preventDefault();
-  const v = $('icao').value.trim();
-  if (v && v !== lastLoc){ $('go').disabled = true; const ok = await resolveLocation(); $('go').disabled = false; if (!ok) return; lastLoc = v; }
-  check();
-});
-const manual = () => { $('icao').value=''; lastLoc=''; placeLabel=''; $('placename').textContent='Custom coordinates'; };
-$('lat').addEventListener('input', manual);
-$('lon').addEventListener('input', manual);
-setInterval(() => { if ($('auto').checked && !document.hidden) check(); }, 15*60*1000);
-check();
-</script>
-<script data-pplx-inline-edit>
-(function () {
-  if (window === window.top) return;
-
-  const allowedParentOrigins = ["https://www.perplexity.ai","https://perplexity.ai","https://testing.perplexity.ai","https://staging.perplexity.ai","https://*.preview.i.perplexity.ai","http://perplexity.localhost","http://localhost:1420","http://127.0.0.1:1420","http://localhost:3000","http://127.0.0.1:3000","http://localhost:5173","http://127.0.0.1:5173"];
-  const MAX_FONT_BYTES = 500 * 1024;
-  const MAX_TOTAL_FONT_BYTES = 2 * 1024 * 1024;
-  const DEFAULT_LINE_HEIGHT = 16;
-  let scrollForwarding = false;
-  let scrollRaf = 0;
-  let trustedTopOrigin = null;
-
-  // Allow entries like "https://*.preview.i.perplexity.ai" — the wildcard
-  // matches a single DNS label (no dots), so "https://*.foo" cannot stretch
-  // across multiple labels.
-  function matchesAllowedOrigin(origin) {
-    if (!origin) return false;
-    for (const entry of allowedParentOrigins) {
-      if (!entry.includes("*")) {
-        if (entry === origin) return true;
-        continue;
-      }
-      const pattern = new RegExp(
-        "^" +
-          entry.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^.]+") +
-          "$",
-      );
-      if (pattern.test(origin)) return true;
-    }
-    return false;
-  }
-
-  // Trust decision: when the sender is same-origin-visible (event.origin is a
-  // real origin like https://www.perplexity.ai) we trust event.origin directly.
-  // When event.origin is "null" (opaque broker srcdoc), we fall back to the
-  // broker's stamped `parentOrigin` to identify the top window. The fallback
-  // is claim-only — we rely on the browser's native `targetOrigin` enforcement
-  // on the response path (see postToTrustedTop) to ensure replies can't be
-  // delivered to anyone but the actual top window of that claimed origin.
-  function getTrustedParentOrigin(event) {
-    const forwardedParentOrigin =
-      typeof event.data.parentOrigin === "string" ? event.data.parentOrigin : null;
-    const parentOrigin = event.origin === "null" ? forwardedParentOrigin : event.origin;
-    return matchesAllowedOrigin(parentOrigin) ? parentOrigin : null;
-  }
-
-  // All responses go to window.top with targetOrigin = the allowlisted origin.
-  // An attacker that iframes us inside their own null-origin broker can claim
-  // any parentOrigin they like, but the browser will drop the reply whenever
-  // the real top's origin doesn't match — so the screenshot never leaves.
-  function postToTrustedTop(message) {
-    if (!trustedTopOrigin) return;
-    try {
-      window.top.postMessage(message, trustedTopOrigin);
-    } catch (_error) {}
-  }
-
-  const PICK_CAPABILITIES = ["pick"];
-  const PICK_CHAIN_LENGTH = 4;
-  const PICK_MAX_TEXT_CHARS = 120;
-  const PICK_MAX_HTML_CHARS = 300;
-
-  function truncate(value, maxChars) {
-    return value.length > maxChars ? value.slice(0, maxChars - 1) + "…" : value;
-  }
-
-  function isPickableElement(element) {
-    return (
-      element instanceof Element &&
-      element !== document.documentElement &&
-      element !== document.body
-    );
-  }
-
-  function resolvePickTarget(x, y) {
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-    const element = document.elementFromPoint(x, y);
-    return isPickableElement(element) ? element.closest("svg") || element : null;
-  }
-
-  function pickLabel(element) {
-    if (element.id) return element.localName + "#" + element.id;
-    return [element.localName].concat(Array.from(element.classList).slice(0, 2)).join(".");
-  }
-
-  // Only attributes that help find the element in source. data-* values and URL
-  // query strings or fragments can carry tokens.
-  const PICK_ATTRIBUTES = new Set([
-    "id",
-    "class",
-    "name",
-    "type",
-    "role",
-    "alt",
-    "aria-label",
-    "href",
-    "src",
-  ]);
-
-  function pickAttributeValue(attribute) {
-    return attribute.name === "href" || attribute.name === "src"
-      ? attribute.value.split(/[?#]/)[0]
-      : attribute.value;
-  }
-
-  function describePickElement(element) {
-    const chain = [];
-    for (
-      let current = element;
-      isPickableElement(current) && chain.length < PICK_CHAIN_LENGTH;
-      current = current.parentElement
-    ) {
-      chain.unshift(current);
-    }
-    const attributes = Array.from(element.attributes)
-      .filter((attribute) => PICK_ATTRIBUTES.has(attribute.name))
-      .map((attribute) => ` ${attribute.name}="${pickAttributeValue(attribute).replace(/"/g, "&quot;")}"`)
-      .join("");
-    const text = (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim();
-    return {
-      chain: chain.map(pickLabel),
-      html: truncate(`<${element.localName}${attributes}>`, PICK_MAX_HTML_CHARS),
-      text: text ? truncate(text, PICK_MAX_TEXT_CHARS) : undefined,
-    };
-  }
-
-  // Hover asks once per frame, and innerText on a large section forces layout,
-  // so only the rect is re-read while the pointer stays on the same element.
-  // Clicks ask for fresh details since the page may have changed the element.
-  let lastPick = null;
-
-  function describePickTarget(element, fresh) {
-    if (fresh || lastPick?.element !== element) {
-      lastPick = { element, details: describePickElement(element) };
-    }
-    const rect = element.getBoundingClientRect();
-    return {
-      rect: { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
-      ...lastPick.details,
-    };
-  }
-
-  function inlineAll(original, clone) {
-    if (original.nodeType !== 1 || clone.nodeType !== 1) return;
-
-    try {
-      const computedStyle = getComputedStyle(original);
-      // cssText on a computed style is the serialized declaration in modern
-      // Chromium/Safari — a single read beats enumerating ~400 longhand
-      // properties. Firefox returns "" here, so we fall back on empty.
-      const serialized = computedStyle.cssText;
-      if (serialized) {
-        clone.style.cssText = serialized;
-      } else {
-        const parts = new Array(computedStyle.length);
-        for (let index = 0; index < computedStyle.length; index += 1) {
-          const property = computedStyle[index];
-          parts[index] = `${property}:${computedStyle.getPropertyValue(property)};`;
-        }
-        clone.style.cssText = parts.join("");
-      }
-    } catch (_error) {}
-
-    const originalChildren = original.children;
-    const clonedChildren = clone.children;
-    for (
-      let index = 0;
-      index < originalChildren.length && index < clonedChildren.length;
-      index += 1
-    ) {
-      inlineAll(originalChildren[index], clonedChildren[index]);
-    }
-  }
-
-  function extractFontUrl(srcValue) {
-    const matches = [
-      ...srcValue.matchAll(
-        /url\(["']?([^"')]+)["']?\)(?:\s*format\(["']?([^"')]+)["']?\))?/gi,
-      ),
-    ];
-    if (matches.length === 0) return null;
-    const woff2 = matches.find((m) => m[2] && m[2].toLowerCase().includes("woff2"));
-    if (woff2) return woff2[1];
-    const woff = matches.find((m) => m[2] && m[2].toLowerCase().includes("woff"));
-    if (woff) return woff[1];
-    return matches[0][1];
-  }
-
-  // Cache resolved font URL -> data URI across captures. Fonts on a page
-  // essentially never change, and a batch run emits multiple captures back to
-  // back — without this we'd refetch + re-base64 every time.
-  const fontDataUriCache = new Map();
-  const SRC_DECLARATION_RE = /src\s*:\s*[^;}]+/i;
-
-  async function fetchAsDataUri(url) {
-    if (fontDataUriCache.has(url)) return fontDataUriCache.get(url);
-    let dataUri = null;
-    try {
-      const response = await fetch(url, { mode: "cors", credentials: "omit" });
-      if (response.ok) {
-        const blob = await response.blob();
-        if (blob.size <= MAX_FONT_BYTES) {
-          dataUri = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () =>
-              resolve(typeof reader.result === "string" ? reader.result : null);
-            reader.onerror = () => resolve(null);
-            reader.readAsDataURL(blob);
-          });
-        }
-      }
-    } catch (_error) {
-      dataUri = null;
-    }
-    fontDataUriCache.set(url, dataUri);
-    return dataUri;
-  }
-
-  function collectFontFaceRuleTexts() {
-    const rules = [];
-    for (const sheet of document.styleSheets) {
-      let cssRules;
-      try {
-        cssRules = sheet.cssRules;
-      } catch (_error) {
-        continue;
-      }
-      if (!cssRules) continue;
-      for (const rule of cssRules) {
-        const cssText = rule.cssText || "";
-        if (cssText.startsWith("@font-face")) rules.push(cssText);
-      }
-    }
-    return rules;
-  }
-
-  async function buildInlinedFontCss() {
-    const ruleTexts = collectFontFaceRuleTexts();
-    if (ruleTexts.length === 0) return null;
-
-    const resolved = ruleTexts.map((cssText) => {
-      if (!SRC_DECLARATION_RE.test(cssText)) return null;
-      const srcMatch = cssText.match(/src\s*:\s*([^;}]+)[;}]/i);
-      if (!srcMatch) return null;
-      const url = extractFontUrl(srcMatch[1]);
-      if (!url) return null;
-      try {
-        return { cssText, url: new URL(url, document.baseURI).href };
-      } catch (_error) {
-        return null;
-      }
-    });
-
-    const dataUris = await Promise.all(
-      resolved.map((entry) => (entry ? fetchAsDataUri(entry.url) : Promise.resolve(null))),
-    );
-
-    const inlined = [];
-    let totalBytes = 0;
-    for (let index = 0; index < resolved.length; index += 1) {
-      const entry = resolved[index];
-      const dataUri = dataUris[index];
-      if (!entry || !dataUri) continue;
-      const approxBytes = dataUri.length * 0.75;
-      if (totalBytes + approxBytes > MAX_TOTAL_FONT_BYTES) break;
-      totalBytes += approxBytes;
-      inlined.push(entry.cssText.replace(SRC_DECLARATION_RE, `src: url("${dataUri}")`));
-    }
-    return inlined.length > 0 ? inlined.join("\n") : null;
-  }
-
-  function stripExternal(clone) {
-    const images = clone.querySelectorAll("img");
-    for (let index = 0; index < images.length; index += 1) {
-      const src = images[index].getAttribute("src");
-      if (src && !src.startsWith("data:")) images[index].removeAttribute("src");
-    }
-
-    const elements = clone.querySelectorAll("*");
-    for (let index = 0; index < elements.length; index += 1) {
-      const style = elements[index].style.cssText;
-      if (style && style.includes("url(")) {
-        elements[index].style.cssText = style.replace(
-          /url\(["']?(?!data:)[^)"']*["']?\)/gi,
-          "none",
-        );
-      }
-    }
-  }
-
-  function emitScroll() {
-    scrollRaf = 0;
-    if (!scrollForwarding) return;
-    postToTrustedTop({
-      type: "INLINE_EDIT_SCROLL",
-      scrollX: window.scrollX,
-      scrollY: window.scrollY,
-      capabilities: PICK_CAPABILITIES,
-    });
-  }
-
-  window.addEventListener(
-    "scroll",
-    function () {
-      if (!scrollForwarding || scrollRaf) return;
-      scrollRaf = requestAnimationFrame(emitScroll);
-    },
-    { passive: true, capture: true },
-  );
-
-  async function handleCaptureRequest(event) {
-    const requestId = event.data.requestId;
-    const scrollX = window.scrollX;
-    const scrollY = window.scrollY;
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-
-    function postResult(dataUrl) {
-      postToTrustedTop({
-        type: "INLINE_EDIT_SCREENSHOT_RESULT",
-        requestId,
-        dataUrl,
-        scrollX,
-        scrollY,
-      });
-    }
-
-    try {
-      // Wait for any pending web fonts to resolve so both inline metrics and
-      // the @font-face inlining below see the same loaded faces.
-      if (document.fonts && document.fonts.ready) {
-        try {
-          await document.fonts.ready;
-        } catch (_error) {}
-      }
-
-      const clone = document.documentElement.cloneNode(true);
-      inlineAll(document.documentElement, clone);
-
-      const removedNodes = clone.querySelectorAll("script,link[rel=\"stylesheet\"],style");
-      for (let index = 0; index < removedNodes.length; index += 1) {
-        removedNodes[index].remove();
-      }
-
-      stripExternal(clone);
-
-      // Re-embed web fonts as data-URI @font-face rules so the SVG rasterizer
-      // can resolve them — external font URLs aren't fetched during
-      // foreignObject rendering, which would otherwise force a fallback face
-      // and change text metrics.
-      const inlinedFontCss = await buildInlinedFontCss();
-      if (inlinedFontCss) {
-        const styleEl = document.createElement("style");
-        styleEl.textContent = inlinedFontCss;
-        const head = clone.querySelector("head");
-        if (head) head.appendChild(styleEl);
-        else clone.insertBefore(styleEl, clone.firstChild);
-      }
-
-      const html = new XMLSerializer().serializeToString(clone);
-      const svg =
-        `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
-        '<foreignObject width="100%" height="100%">' +
-        `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;overflow:hidden">` +
-        `<div style="position:relative;left:-${scrollX}px;top:-${scrollY}px">` +
-        html +
-        "</div></div></foreignObject></svg>";
-      const svgUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-      const image = new Image();
-      image.onload = function () {
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext("2d").drawImage(image, 0, 0);
-        postResult(canvas.toDataURL("image/png"));
-      };
-      image.onerror = function () {
-        postResult(null);
-      };
-      image.src = svgUrl;
-    } catch (_error) {
-      postResult(null);
-    }
-  }
-
-  window.addEventListener("message", function (event) {
-    if (!event.data) return;
-    // Only accept messages from the direct parent frame. Blocks sibling /
-    // unrelated-window postMessage senders that could otherwise reach us.
-    if (event.source !== window.parent) return;
-
-    const trustedParentOrigin = getTrustedParentOrigin(event);
-    if (!trustedParentOrigin) return;
-    trustedTopOrigin = trustedParentOrigin;
-
-    if (event.data.type === "INLINE_EDIT_PICK") {
-      const element = resolvePickTarget(event.data.x, event.data.y);
-      postToTrustedTop({
-        type: "INLINE_EDIT_PICK_RESULT",
-        seq: event.data.seq,
-        target: element ? describePickTarget(element, event.data.fresh === true) : null,
-      });
-      return;
-    }
-
-    if (event.data.type === "INLINE_EDIT_SCROLL_START") {
-      scrollForwarding = true;
-      emitScroll();
-      return;
-    }
-
-    if (event.data.type === "INLINE_EDIT_SCROLL_STOP") {
-      scrollForwarding = false;
-      if (scrollRaf) cancelAnimationFrame(scrollRaf);
-      scrollRaf = 0;
-      return;
-    }
-
-    if (event.data.type === "INLINE_EDIT_SCROLL_BY") {
-      const { deltaX, deltaY, deltaMode } = event.data;
-      if (!scrollForwarding || !Number.isFinite(deltaX) || !Number.isFinite(deltaY)) return;
-      if (deltaMode !== 0 && deltaMode !== 1 && deltaMode !== 2) return;
-      const lineHeight =
-        parseFloat(getComputedStyle(document.documentElement).lineHeight) || DEFAULT_LINE_HEIGHT;
-      const scaleX = deltaMode === 1 ? lineHeight : deltaMode === 2 ? window.innerWidth : 1;
-      const scaleY = deltaMode === 1 ? lineHeight : deltaMode === 2 ? window.innerHeight : 1;
-      // The selection overlay receives the wheel event instead of this iframe.
-      // Instant scrolling preserves trackpad deltas even on smooth-scroll sites.
-      window.scrollBy({ left: deltaX * scaleX, top: deltaY * scaleY, behavior: "instant" });
-      emitScroll();
-      return;
-    }
-
-    if (event.data.type !== "INLINE_EDIT_CAPTURE_REQUEST") return;
-
-    handleCaptureRequest(event);
+// ---- Location rows and result panels ----
+function addLoc(text='', lat='', lon='', label='', place=''){
+  if (locs.length >= MAX_LOCS) return null;
+  const id = ++locSeq, el = document.createElement('div');
+  el.className = 'lrow';
+  el.innerHTML = `<span class="lnum" aria-hidden="true"></span>
+    <label class="loc">City, airport name or code<input class="q" placeholder="Heathrow · Denver, CO · JFK · KDEN" autocomplete="off" list="ap-list"></label>
+    <label>Latitude<input class="lat" inputmode="decimal"></label>
+    <label>Longitude<input class="lon" inputmode="decimal"></label>
+    <button type="button" class="rm">Remove</button>
+    <div class="place" aria-live="polite"></div>`;
+  const panel = document.createElement('section');
+  panel.className = 'lpanel'; panel.id = 'loc-' + id;
+  panel.innerHTML = `<div class="banner idle"><div class="big"><span class="pnum"></span><span class="btxt">Not checked yet</span></div><div class="meta"></div></div>
+    <div class="sources" aria-live="polite"></div>
+    <section><h2><span class="h-nws">Official weather warnings</span><span class="n-nws"></span></h2><div class="nws"></div></section>
+    <section><h2><span>SIGMETs / AIRMETs (US + international)</span><span class="n-sig"></span></h2><div class="sig"></div></section>
+    <section><h2><span>Center Weather Advisories (US)</span><span class="n-cwa"></span></h2><div class="cwa"></div></section>
+    <section class="model-sec" hidden><h2><span>Backup: model forecast, next 3 h (unofficial)</span><span class="n-model"></span></h2><div class="model"></div></section>`;
+  const l = {id, el, panel, label, lastQ: lat !== '' ? text : '', res: null};
+  Q(l,'.q').value = text; Q(l,'.lat').value = lat; Q(l,'.lon').value = lon; Q(l,'.place').textContent = place;
+  $('locs').append(el); $('results').append(panel);
+  Q(l,'.q').addEventListener('input', e => suggest(e.target));
+  const manual = () => { Q(l,'.q').value=''; l.lastQ=''; l.label=''; Q(l,'.place').textContent='Custom coordinates'; };
+  Q(l,'.lat').addEventListener('input', manual);
+  Q(l,'.lon').addEventListener('input', manual);
+  Q(l,'.rm').addEventListener('click', () => removeLoc(l));
+  locs.push(l); renumber();
+  return l;
+}
+function removeLoc(l){
+  if (locs.length === 1) return;
+  const i = locs.indexOf(l); locs.splice(i, 1); l.el.remove(); l.panel.remove();
+  renumber(); renderSummary(); saveURL();
+  Q(locs[Math.min(i, locs.length-1)], '.q').focus();
+}
+function renumber(){
+  locs.forEach((l, i) => {
+    Q(l,'.lnum').textContent = i + 1; P(l,'pnum').textContent = i + 1;
+    Q(l,'.q').setAttribute('aria-label', `Location ${i+1}: city, airport name or code`);
+    Q(l,'.rm').hidden = locs.length === 1; Q(l,'.rm').setAttribute('aria-label', `Remove location ${i+1}`);
   });
-})();
+  const full = locs.length >= MAX_LOCS;
+  $('add').disabled = full; $('add').textContent = full ? 'Maximum 4 locations' : '+ Add location';
+  $('lcount').textContent = `${locs.length} of ${MAX_LOCS} locations`;
+  $('go').textContent = locs.length > 1 ? 'Check all' : 'Check now';
+  document.body.classList.toggle('multi', locs.length > 1);
+}
+// Summary tiles: one per location, shown when more than one location is entered. Click a tile to jump to its details.
+function renderSummary(){
+  const s = $('summary');
+  s.hidden = locs.length < 2; if (s.hidden) return;
+  s.innerHTML = locs.map((l, i) => `<button type="button" class="tile ${l.res?.cls || 'idle'}" data-id="${l.id}">
+      <span class="tn"><span class="pnum">${i+1}</span><span>${esc(l.label || Q(l,'.q').value.trim() || 'Custom coordinates')}</span></span>
+      <span class="ts">${esc(l.res?.short || l.res?.text || 'Not checked yet')}</span></button>`).join('');
+}
+$('summary').addEventListener('click', e => {
+  const t = e.target.closest('.tile'); if (!t) return;
+  $('loc-' + t.dataset.id).scrollIntoView({behavior:'smooth', block:'start'});
+});
+// The location list is kept in the address (?loc=KJFK&loc=Denver,%20CO) so a bookmark remembers it.
+function saveURL(){
+  try {
+    const u = new URL(location.href); u.searchParams.delete('loc');
+    const vals = locs.map(l => Q(l,'.q').value.trim() || `${Q(l,'.lat').value.trim()},${Q(l,'.lon').value.trim()}`);
+    if (!(vals.length === 1 && vals[0] === 'KJFK')) vals.forEach(v => u.searchParams.append('loc', v));
+    history.replaceState(null, '', u);
+  } catch {}
+}
 
+let running = false;
+async function checkAll(){
+  if (running) return; running = true;
+  $('go').disabled = true;
+  locs.forEach(l => setBanner(l, 'idle', 'Checking…'));
+  renderSummary();
+  // The shared aviation feeds start downloading while locations are looked up.
+  const shared = Promise.all([settle(awc('airsigmet')), settle(awc('isigmet')), settle(awc('cwa'))]).then(([rS, rI, rC]) => ({rS, rI, rC}));
+  await Promise.all(locs.map(async l => {
+    const v = Q(l,'.q').value.trim();
+    if (v && v !== l.lastQ){ if (!(await resolveLocation(l))) return; l.lastQ = v; }
+    await check(l, shared);
+  }));
+  renderSummary(); saveURL();
+  $('go').disabled = false; running = false;
+}
+$('add').addEventListener('click', () => { const l = addLoc(); if (l){ renderSummary(); Q(l,'.q').focus(); } });
+$('form').addEventListener('submit', e => { e.preventDefault(); checkAll(); });
+setInterval(() => { if ($('auto').checked && !document.hidden) checkAll(); }, 15*60*1000);
 
-</script></body>
+function initLocations(){
+  const COORD = /^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/;
+  const want = new URLSearchParams(location.search).getAll('loc').map(v => v.trim()).filter(Boolean).slice(0, MAX_LOCS);
+  if (!want.length) addLoc('KJFK', '40.6413', '-73.7781', 'KJFK', 'KJFK · NEW YORK/JOHN F KENNEDY INTL');
+  for (const v of want){
+    const m = v.match(COORD);
+    if (m) addLoc('', (+m[1]).toFixed(4), (+m[2]).toFixed(4), '', 'Custom coordinates');
+    else addLoc(v);
+  }
+  renderSummary();
+  checkAll();
+}
+$('ver').textContent = `Version ${APP_VERSION}`;
+$('vbadge').textContent = `v${APP_VERSION}`;
+$('vbadge').addEventListener('click', () => { $('history').open = true; $('history').scrollIntoView({behavior:'smooth', block:'start'}); });
+async function loadVersions() {
+  const meta = [`<span>Page <b>v${esc(APP_VERSION)}</b></span>`];
+  try {
+    if (!API) throw new Error('no backend');
+    const r = await fetch(STATIC ? 'version.json' : `${API}/version`); if (!r.ok) throw new Error(r.status);
+    const v = await r.json();
+    meta.push(`<span>${REMOTE ? 'Relay server' : 'Server'} <b>v${esc(v.version)}</b></span>`);
+    if (v.commit) meta.push(`<span>Commit <b>${esc(v.commit)}</b></span>`);
+    if (v.releases?.[0]?.date) meta.push(`<span>Released <b>${esc(v.releases[0].date)}</b></span>`);
+    if (v.version !== APP_VERSION && !REMOTE) meta.push(`<span class="warnv">Page and server versions differ — reload the page</span>`);
+    $('releases').innerHTML = (v.releases||[]).map(x => `<div class="rel"><div class="rh"><span class="rv">v${esc(x.version)}</span><span class="rd">${esc(x.date)}</span>${x.version===APP_VERSION?'<span class="cur">current</span>':''}</div><ul>${x.notes.map(n=>`<li>${esc(n).replace(/`([^`]+)`/g,'<code>$1</code>')}</li>`).join('')}</ul></div>`).join('') || '<div class="empty">No release notes found.</div>';
+    const n = (v.releases||[]).length; if (n) $('ver').textContent = `Version ${APP_VERSION} · ${n} releases`;
+  } catch (e) {
+    $('releases').innerHTML = '<div class="empty">Release history is unavailable right now.</div>';
+  }
+  $('vmeta').innerHTML = meta.join('');
+}
+loadVersions();
+// Text size: every size on the page is in rem, so changing the root size scales the whole layout.
+// It multiplies the visitor's own browser font setting and works with browser zoom.
+// The choice is kept in the address (?text=125) so a bookmark remembers it.
+const TS = [50, 62.5, 75, 87.5, 100, 112.5, 125, 150];
+const tsQ = Number(new URLSearchParams(location.search).get('text'));
+let tsI = TS.indexOf(tsQ || 100); if (tsI < 0) tsI = TS.indexOf(100);
+function applyTS() {
+  document.documentElement.style.fontSize = TS[tsI] + '%';
+  $('ts-val').textContent = TS[tsI] + '%';
+  $('ts-down').disabled = tsI === 0; $('ts-up').disabled = tsI === TS.length - 1;
+  try { const u = new URL(location.href); if (TS[tsI] === 100) u.searchParams.delete('text'); else u.searchParams.set('text', TS[tsI]); history.replaceState(null, '', u); } catch {}
+}
+$('ts-down').addEventListener('click', () => { if (tsI > 0) { tsI--; applyTS(); } });
+$('ts-up').addEventListener('click', () => { if (tsI < TS.length - 1) { tsI++; applyTS(); } });
+applyTS();
+initLocations();
+</script>
+</body>
 </html>
