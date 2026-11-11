@@ -1,7 +1,9 @@
 <!doctype html>
+<!-- Aviation Weather Hazard Check · Author: © Simon Z. Chan · Updated: 2026-11-11 12:25 EST -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="author" content="Simon Z. Chan">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Aviation Weather Hazard Check</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -146,6 +148,7 @@
 
   <footer>
     <div class="ver" id="ver"></div>
+    <div class="ver" id="credit">© Simon Z. Chan</div>
     Data: <a href="https://www.weather.gov/documentation/services-web-api" target="_blank" rel="noopener">api.weather.gov</a> and
     <a href="https://aviationweather.gov/data/api/" target="_blank" rel="noopener">aviationweather.gov Data API</a>.
     Backups: <a href="https://api.weather.gc.ca/" target="_blank" rel="noopener">Environment Canada</a>, <a href="https://meteoalarm.org" target="_blank" rel="noopener">MeteoAlarm</a>, <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> forecast. City search by <a href="https://open-meteo.com/en/docs/geocoding-api" target="_blank" rel="noopener">Open-Meteo</a>; airport names from <a href="https://ourairports.com/data/" target="_blank" rel="noopener">OurAirports</a>. Not an official briefing source; always get a full briefing before flight.
@@ -158,7 +161,9 @@ const raw = window.__API_BASE__;
 const API = raw.startsWith('__PORT_') ? (LOCAL.has(location.hostname) || location.protocol==='file:' ? 'http://localhost:8000' : null) : raw;
 // Standalone copy (standalone/index.html): the API base is a full URL to a relay server on another site.
 const REMOTE = /^https?:\/\//.test(raw) && new URL(raw).host !== location.host;
-const APP_VERSION = '1.8.0';   // keep in sync with VERSION (tools/release.py does this)
+const AUTHOR = '© Simon Z. Chan';
+const UPDATED = '2026-11-11 12:25 EST';   // Updated: 2026-11-11 12:25 EST (tools/release.py stamps this)
+const APP_VERSION = '1.8.1';   // keep in sync with VERSION (tools/release.py does this)
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtT = v => { if (v==null) return '—'; const d = typeof v==='number' ? new Date(v*1000) : new Date(v); return isNaN(d) ? esc(v) : d.toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',timeZoneName:'short'}); };
@@ -594,6 +599,7 @@ function initLocations(){
   checkAll();
 }
 $('ver').textContent = `Version ${APP_VERSION}`;
+$('credit').textContent = `${AUTHOR} · Updated ${UPDATED}`;
 $('vbadge').textContent = `v${APP_VERSION}`;
 $('vbadge').addEventListener('click', () => { $('history').open = true; $('history').scrollIntoView({behavior:'smooth', block:'start'}); });
 async function loadVersions() {
