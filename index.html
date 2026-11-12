@@ -1,15 +1,14 @@
 <!doctype html>
-<!-- Aviation Weather Hazard Check · Author: © Simon Z. Chan · Updated: 2026-11-12 13:47 EST -->
+<!-- Aviation Weather Hazard Check · Author: © Simon Z. Chan · Updated: 2026-11-12 15:50 EST -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="author" content="Simon Z. Chan">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Aviation Weather Hazard Check</title>
-<!-- Data relay for aviationweather.gov, MeteoAlarm and airport search (those sites block direct browser requests)
-     and for hourly email alerts.
-     Change this URL to use your own relay, for example https://<your-project>.pages.dev/api with window.__STATIC_DATA__ = false. -->
-<script>window.__API_BASE__ = 'https://aviation-wx-check.pplx.app/port/8000';</script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>window.__API_BASE__ = 'port/8000';</script>
 <style>
   :root{
     --bg:#0e1216; --surface:#151b21; --surface-2:#1c242c; --line:#28323c;
@@ -117,13 +116,24 @@
   .btn{display:inline-block;background:var(--surface-2);color:var(--text);border:1px solid var(--line);font:600 1.75rem var(--sans);padding:0.8125rem 1.5rem;border-radius:0.5rem;text-decoration:none;cursor:pointer}
   .btn:hover{border-color:var(--muted)}
   #o-text{width:100%;margin-top:0.625rem;font:1.5rem/1.45 var(--code);background:var(--bg);color:var(--muted);border:1px solid var(--line);border-radius:0.5rem;padding:0.625rem;resize:vertical}
-  .loc{position:relative}
+  .loc{position:relative;flex:1 1 22rem;min-width:min(100%,22rem);margin-right:0.75rem}
+  .loc input{width:100%}
   .sug{position:absolute;left:0;min-width:100%;width:34rem;max-width:calc(100vw - 2rem);top:100%;margin-top:0.25rem;z-index:30;background:var(--surface);border:1px solid var(--line);border-radius:0.5rem;max-height:26rem;overflow:auto;box-shadow:0 0.5rem 1.5rem rgba(0,0,0,.45);text-transform:none;letter-spacing:0}
   .sug .opt{padding:0.625rem 0.875rem;font-size:1.625rem;color:var(--text);cursor:pointer;border-bottom:1px solid var(--line)}
   .sug .opt:last-child{border-bottom:0}
   .sug .opt small{display:block;color:var(--muted);font-size:1.375rem}
   .sug .opt[aria-selected=true],.sug .opt:hover{background:var(--surface-2)}
   .sug .none{padding:0.625rem 0.875rem;font-size:1.5rem;color:var(--muted)}
+  .map-sec h2{align-items:center;flex-wrap:wrap;gap:0.5rem}
+  .ff-links{display:flex;gap:0.5rem;flex-wrap:wrap;text-transform:none;letter-spacing:0}
+  .ff{font:600 1.375rem var(--sans);color:var(--text);background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:0.375rem 0.875rem;text-decoration:none}
+  .ff:hover{border-color:var(--muted)}
+  .wmap{height:clamp(24rem, 48vw, 34rem);border-radius:0.5rem;border:1px solid var(--line);background:#111;font-size:1.375rem}
+  .wmap .leaflet-tooltip{font:1.375rem/1.35 var(--sans)}
+  .wmap .mlabel{background:rgba(14,18,22,.85);color:#fff;border:0;box-shadow:none;font-weight:600}
+  .wmap .mlabel:before{display:none}
+  .mlegend{display:flex;flex-wrap:wrap;gap:0.375rem 1rem;font-size:1.375rem;color:var(--muted);margin:0.5rem 0 1rem}
+  .mlegend i{display:inline-block;width:0.875rem;height:0.875rem;border-radius:0.1875rem;margin-right:0.375rem;vertical-align:-0.0625rem}
   .estat{font-size:1.5rem;color:var(--muted);margin-top:0.625rem;min-height:1.5em}
   .estat.ok{color:var(--clear)} .estat.bad{color:var(--danger)}
   @media (max-width:600px){.erow .emails{flex-basis:100%}.erow button,.erow .btn{flex:1 1 40%;text-align:center}.toggle{margin-left:0}label{flex:1 1 40%;min-width:0}.loc{flex-basis:100%}.toggle{flex-basis:100%}.lrow{padding-left:0}.lrow>.lnum,.lrow+.lrow>.lnum{position:static}.lrow>.lnum{margin-bottom:0.25rem}.lrow .loc{flex-basis:calc(100% - 3rem)}.rm{flex-basis:100%}input{width:100%;padding:0.75rem 0.5rem}.loc{width:100%}.loc input{width:100%}}
@@ -202,8 +212,8 @@ const API = raw.startsWith('__PORT_') ? (LOCAL.has(location.hostname) || locatio
 // Standalone copy (standalone/index.html): the API base is a full URL to a relay server on another site.
 const REMOTE = /^https?:\/\//.test(raw) && new URL(raw).host !== location.host;
 const AUTHOR = '© Simon Z. Chan';
-const UPDATED = '2026-11-12 13:47 EST';   // Updated: 2026-11-12 13:47 EST (tools/release.py stamps this)
-const APP_VERSION = '1.9.2';   // keep in sync with VERSION (tools/release.py does this)
+const UPDATED = '2026-11-12 15:50 EST';   // Updated: 2026-11-12 15:50 EST (tools/release.py stamps this)
+const APP_VERSION = '1.10.1';   // keep in sync with VERSION (tools/release.py does this)
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtT = v => { if (v==null) return '—'; const d = typeof v==='number' ? new Date(v*1000) : new Date(v); return isNaN(d) ? esc(v) : d.toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',timeZoneName:'short'}); };
@@ -235,7 +245,7 @@ async function nws(lat, lon){
   const r = await fetch(`https://api.weather.gov/alerts/active?point=${lat.toFixed(4)},${lon.toFixed(4)}`, {headers:{Accept:'application/geo+json'}});
   if (r.status === 400){ const j = await r.json().catch(()=>({})); if (/out of bounds/i.test(j.detail||'')) return {outside:true, items:[]}; }
   if (!r.ok) throw new Error(`NWS returned ${r.status}`);
-  return {items:(await r.json()).features.map(f => { const p=f.properties; return {event:p.event, severity:p.severity, headline:p.headline, expires:p.expires, text:`${p.description||''}\n\n${p.instruction||''}`, src:'NWS'}; })};
+  return {items:(await r.json()).features.map(f => { const p=f.properties; return {geom:f.geometry, event:p.event, severity:p.severity, headline:p.headline, expires:p.expires, text:`${p.description||''}\n\n${p.instruction||''}`, src:'NWS'}; })};
 }
 // Environment and Climate Change Canada (official, CORS-enabled)
 async function eccc(lat, lon){
@@ -244,7 +254,7 @@ async function eccc(lat, lon){
   const seen = new Set();
   return (await r.json()).features.filter(f => { const p=f.properties, k=(p.alert_name_en||'')+(p.publication_datetime||''); if (seen.has(k)) return false; seen.add(k);
       return !p.expiration_datetime || new Date(p.expiration_datetime) > new Date(); })
-    .map(f => { const p=f.properties; return {event:p.alert_name_en||p.alert_short_name_en, severity:p.risk_colour_en||p.alert_type||'', headline:p.feature_name_en||'', expires:p.expiration_datetime, text:p.alert_text_en||'', src:'Environment Canada'}; });
+    .map(f => { const p=f.properties; return {geom:f.geometry, event:p.alert_name_en||p.alert_short_name_en, severity:p.risk_colour_en||p.alert_type||'', headline:p.feature_name_en||'', expires:p.expiration_datetime, text:p.alert_text_en||'', src:'Environment Canada'}; });
 }
 // MeteoAlarm (EUMETNET, official national services in Europe) via backend relay
 const MA = {AT:'austria',BE:'belgium',BA:'bosnia-herzegovina',BG:'bulgaria',HR:'croatia',CY:'cyprus',CZ:'czechia',DK:'denmark',EE:'estonia',FI:'finland',FR:'france',DE:'germany',GR:'greece',HU:'hungary',IS:'iceland',IE:'ireland',IL:'israel',IT:'italy',LV:'latvia',LT:'lithuania',LU:'luxembourg',MT:'malta',MD:'moldova',ME:'montenegro',NL:'netherlands',MK:'republic-of-north-macedonia',NO:'norway',PL:'poland',PT:'portugal',RO:'romania',RS:'serbia',SK:'slovakia',SI:'slovenia',ES:'spain',SE:'sweden',CH:'switzerland',GB:'united-kingdom',UA:'ukraine'};
@@ -277,15 +287,16 @@ async function meteoalarm(lat, lon, geo){
     if (/minor/i.test(w.severity||'')) continue;                         // green / no-risk level
     if (w.onset && new Date(w.onset) > soon) continue;                    // only current or starting within 6 h
     if (w.expires && new Date(w.expires) < now) continue;
-    let how = null;
+    let how = null, geom = null;
     for (const a of w.areas){
-      if (a.polygon.length){ if (a.polygon.some(pg => inside(lat, lon, pg.trim().split(/\s+/).map(pt => { const [la,lo]=pt.split(','); return {lat:la, lon:lo}; })))) { how='polygon'; break; } }
+      if (a.polygon.length){ const rings = a.polygon.map(pg => pg.trim().split(/\s+/).map(pt => { const [la,lo]=pt.split(','); return {lat:la, lon:lo}; }));
+        if (rings.some(pg => inside(lat, lon, pg))) { how='polygon'; geom = {type:'Polygon', coordinates: rings.map(r => r.map(p => [+p.lon, +p.lat]))}; break; } }
       else if (names.has(core(a.desc))) { how='region'; break; }
     }
     if (!how) continue;
     const key = (w.event||'') + '|' + (w.severity||'');
     if (seen.has(key)) continue; seen.add(key);
-    out.push({event:w.event, severity:w.severity, headline:`${w.headline||''}${how==='region'?' (matched by region name)':''}`, expires:w.expires, text:w.description, src:w.sender||'MeteoAlarm'});
+    out.push({geom, event:w.event, severity:w.severity, headline:`${w.headline||''}${how==='region'?' (matched by region name)':''}`, expires:w.expires, text:w.description, src:w.sender||'MeteoAlarm'});
   }
   return out;
 }
@@ -380,6 +391,7 @@ async function check(l, shared){
   const {rS, rI, rC} = await shared;
   l.geo = rG.ok ? rG.v : null; l.found = [];   // l.found: plain-text hazard list for the email report
   const status = []; let total = 0, gaps = 0, backup = false;
+  const mapD = {lat, lon, official: [], sig: [], cwa: []};   // what the weather map draws
 
   // Official warnings: NWS first; outside the US (or if NWS is down) use the national service for that country.
   let official = null, officialName = 'NWS';
@@ -392,6 +404,7 @@ async function check(l, shared){
   }
   P(l,'h-nws').textContent = `Official weather warnings · ${official ? officialName : 'no source'}`;
   if (official) l.found.push(...official.map(a => `${a.src || officialName}: ${a.event}${a.severity ? ' (' + a.severity + ')' : ''}${a.expires ? ', until ' + fmtT(a.expires) : ''}`));
+  if (official) mapD.official = official.filter(a => a.geom);
   if (official){ total += official.length; render(l, 'nws', official, nwsCard, `No active ${officialName} warnings at this point.`); }
   else { gaps++; P(l,'n-nws').textContent=''; P(l,'nws').innerHTML = `<div class="err">${rN.ok ? 'No official warning feed is connected for this country.' : 'NWS is unavailable and no other official feed covers this point.'} See the model backup below.</div>`; }
 
@@ -400,11 +413,14 @@ async function check(l, shared){
     const us = rS.ok ? rS.v.filter(s => s.coords?.length && inside(lat,lon,s.coords)) : [];
     const intl = rI.ok ? rI.v.filter(s => s.icaoId!=='KKCI' && s.coords?.length && inside(lat,lon,s.coords)) : [];
     const m = us.concat(intl); total += m.length;
+    const near = (rS.ok ? rS.v : []).concat(rI.ok ? rI.v.filter(s => s.icaoId!=='KKCI') : []).filter(s => s.coords?.length && !m.includes(s) && nearBox(lat, lon, s.coords));
+    mapD.sig = m.map(s => ({...s, hit:true})).concat(near.map(s => ({...s, hit:false})));
     l.found.push(...m.map(x => `${x.firId ? 'Intl SIGMET' : x.airSigmetType}: ${x.hazard}, ${fmtT(x.validTimeFrom)} to ${fmtT(x.validTimeTo)}`));
     render(l, 'sig', m, sigCard, 'No SIGMETs or AIRMETs cover this point.');
     status.push(['AWC SIGMET/AIRMET', rS.ok && rI.ok ? 'ok' : 'bad']);
   } else { gaps++; fail(l, 'sig', rS.e); status.push(['AWC SIGMET/AIRMET','bad']); }
-  if (rC.ok){ const m = rC.v.filter(c => c.coords?.length && inside(lat,lon,c.coords)); total+=m.length; l.found.push(...m.map(c => `CWA ${c.cwsu}: ${c.hazard}, ${fmtT(c.validTimeFrom)} to ${fmtT(c.validTimeTo)}`)); render(l, 'cwa', m, cwaCard, 'No Center Weather Advisories cover this point.'); status.push(['AWC CWA','ok']); }
+  if (rC.ok){ const m = rC.v.filter(c => c.coords?.length && inside(lat,lon,c.coords)); total+=m.length;
+    mapD.cwa = rC.v.filter(c => c.coords?.length && nearBox(lat, lon, c.coords)).map(c => ({...c, hit: m.includes(c)})); l.found.push(...m.map(c => `CWA ${c.cwsu}: ${c.hazard}, ${fmtT(c.validTimeFrom)} to ${fmtT(c.validTimeTo)}`)); render(l, 'cwa', m, cwaCard, 'No Center Weather Advisories cover this point.'); status.push(['AWC CWA','ok']); }
   else { fail(l, 'cwa', rC.e); status.push(['AWC CWA','bad']); if (!rS.ok) gaps++; }
 
   // Backup model forecast whenever an official/aviation source is missing
@@ -417,6 +433,7 @@ async function check(l, shared){
     else { fail(l, 'model', r.e); status.push(['Open-Meteo','bad']); }
   }
   chips(l, status);
+  drawMap(l, mapD).catch(() => {});
 
   const anyBad = status.some(s => s[1]==='bad');
   setBanner(l, total ? 'alert' : anyBad && !backup ? 'idle' : 'clear',
@@ -596,6 +613,7 @@ function addLoc(text='', lat='', lon='', label='', place=''){
   panel.className = 'lpanel'; panel.id = 'loc-' + id;
   panel.innerHTML = `<div class="banner idle"><div class="big"><span class="pnum"></span><span class="btxt">Not checked yet</span></div><div class="meta"></div></div>
     <div class="sources" aria-live="polite"></div>
+    <section class="map-sec" hidden><h2><span>Weather map · radar and warning areas</span><span class="ff-links"></span></h2><div class="wmap" role="img" aria-label="Map of radar and warning areas around this location"></div><div class="mlegend"></div></section>
     <section><h2><span class="h-nws">Official weather warnings</span><span class="n-nws"></span></h2><div class="nws"></div></section>
     <section><h2><span>SIGMETs / AIRMETs (US + international)</span><span class="n-sig"></span></h2><div class="sig"></div></section>
     <section><h2><span>Center Weather Advisories (US)</span><span class="n-cwa"></span></h2><div class="cwa"></div></section>
@@ -695,6 +713,77 @@ function initLocations(){
   renderSummary();
   checkAll();
 }
+// ---- Weather map: radar + the warning / SIGMET / AIRMET / CWA areas around each location ----
+// Leaflet map with Esri dark-gray base tiles and RainViewer radar (past 2 h, free, max zoom 7).
+const HZ = {
+  official: {color:'#f778ba', name:'Official warning'},
+  sigmet:   {color:'#ff6b5e', name:'SIGMET'},
+  airmet:   {color:'#e3b341', name:'AIRMET / G-AIRMET'},
+  cwa:      {color:'#b392f0', name:'Center Weather Advisory'},
+};
+let radarInfo = null, radarAt = 0;
+async function radarFrame(){                       // latest RainViewer frame, refreshed every 10 min
+  if (radarInfo && Date.now() - radarAt < 600e3) return radarInfo;
+  const r = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+  if (!r.ok) throw new Error('radar ' + r.status);
+  const d = await r.json(), f = (d.radar?.past || []).slice(-1)[0];
+  if (!f) throw new Error('no radar frame');
+  radarAt = Date.now();
+  return radarInfo = {url: `${d.host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`, time: f.time};
+}
+// AWC coordinates are [{lat,lon}, …] or a list of those (multi-part); GeoJSON is [lon,lat].
+const toLL = c => Array.isArray(c?.[0]) ? c.map(toLL) : (c || []).map(p => [parseFloat(p.lat), parseFloat(p.lon)]);
+const nearBox = (lat, lon, coords) => { const pts = toLL(coords).flat(Infinity); for (let i = 0; i < pts.length; i += 2) if (Math.abs(pts[i]-lat) < 9 && Math.abs(pts[i+1]-lon) < 14) return true; return false; };
+const sigKind = s => s.firId || /SIGMET/i.test(s.airSigmetType||'') ? 'sigmet' : 'airmet';
+function ffLinks(l){
+  const q = l.label || Q(l,'.q').value.trim() || `${Q(l,'.lat').value},${Q(l,'.lon').value}`;
+  return `<a class="ff" href="foreflightmobile://maps/search?q=${encodeURIComponent(q)}" title="Opens the ForeFlight app on iPad, iPhone or Mac">Open in ForeFlight</a>`
+       + `<a class="ff" href="https://plan.foreflight.com/" target="_blank" rel="noopener" title="ForeFlight Web (sign-in required)">ForeFlight Web</a>`;
+}
+async function drawMap(l, d){
+  const sec = P(l,'map-sec'); sec.hidden = false;
+  P(l,'ff-links').innerHTML = ffLinks(l);
+  const box = P(l,'wmap');
+  if (!window.L){ box.innerHTML = '<div class="err">The map library could not load. Warnings are listed below.</div>'; return; }
+  if (!l.map){
+    l.map = L.map(box, {zoomControl:true, scrollWheelZoom:false, attributionControl:true, worldCopyJump:true});
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {maxZoom:12,
+      attribution:'Base map &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors'}).addTo(l.map);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {maxZoom:12, zIndex:8, pane:'overlayPane'}).addTo(l.map);
+    l.radar = null; l.layer = L.layerGroup().addTo(l.map);
+  }
+  l.map.setView([d.lat, d.lon], 6);
+  l.layer.clearLayers();
+  const add = (latlngs, kind, hit, label) => {
+    const st = HZ[kind];
+    L.polygon(latlngs, {color: st.color, weight: hit ? 3 : 1.5, dashArray: hit ? null : '5 5', fillOpacity: hit ? 0.25 : 0.07})
+      .bindTooltip(`<b>${esc(st.name)}</b>${hit ? ' (covers this location)' : ''}<br>${label}`, {sticky:true}).addTo(l.layer);
+  };
+  d.official.forEach(a => { try { L.geoJSON(a.geom, {style:{color:HZ.official.color, weight:3, fillOpacity:0.2}})
+      .bindTooltip(`<b>${esc(a.event)}</b><br>${esc(a.src||'')}${a.expires ? ' · until ' + fmtT(a.expires) : ''}`, {sticky:true}).addTo(l.layer); } catch {} });
+  d.sig.forEach(s => add(toLL(s.coords), sigKind(s), s.hit, `${esc(s.hazard||'')} ${esc(s.firName||s.airSigmetType||'')}<br>${fmtT(s.validTimeFrom)} → ${fmtT(s.validTimeTo)}`));
+  d.cwa.forEach(c => add(toLL(c.coords), 'cwa', c.hit, `${esc(c.hazard||'')} · ${esc(c.cwsu||'')}<br>${fmtT(c.validTimeFrom)} → ${fmtT(c.validTimeTo)}`));
+  L.circleMarker([d.lat, d.lon], {radius:7, color:'#fff', weight:2, fillColor:'#2f81f7', fillOpacity:1})
+    .bindTooltip(esc(l.label || 'Location'), {permanent:true, direction:'right', className:'mlabel'}).addTo(l.layer);
+  const counts = {official: d.official.length, sigmet: d.sig.filter(s => sigKind(s)==='sigmet').length,
+                  airmet: d.sig.filter(s => sigKind(s)==='airmet').length, cwa: d.cwa.length};
+  let radarTxt = 'Radar: loading…';
+  P(l,'mlegend').innerHTML = legendHTML(counts, radarTxt);
+  try {
+    const f = await radarFrame();
+    if (l.radar) l.map.removeLayer(l.radar);
+    l.radar = L.tileLayer(f.url, {opacity:0.6, maxNativeZoom:7, maxZoom:12, zIndex:5,
+      attribution:'Radar <a href="https://www.rainviewer.com/api.html" target="_blank" rel="noopener">RainViewer</a>'}).addTo(l.map);
+    radarTxt = `Radar ${fmtT(f.time)}`;
+  } catch { radarTxt = 'Radar unavailable'; }
+  P(l,'mlegend').innerHTML = legendHTML(counts, radarTxt);
+  setTimeout(() => l.map.invalidateSize(), 50);
+}
+function legendHTML(c, radarTxt){
+  return Object.entries(HZ).map(([k, v]) => `<span><i style="background:${v.color}"></i>${v.name}${c[k] ? ` · ${c[k]}` : ''}</span>`).join('')
+    + `<span>Counts = areas on this map · solid = covers this location · dashed = nearby</span><span>${esc(radarTxt)}</span>`;
+}
+
 // ---- Email alerts ----
 // The server checks subscribed locations every hour and emails only NEW hazards.
 // Addresses are never put in the page URL or stored in the browser.
@@ -820,5 +909,445 @@ applyTS();
 initLocations();
 initEmail();
 </script>
-</body>
+<script data-pplx-inline-edit>
+(function () {
+  if (window === window.top) return;
+
+  const allowedParentOrigins = ["https://www.perplexity.ai","https://perplexity.ai","https://testing.perplexity.ai","https://staging.perplexity.ai","https://*.preview.i.perplexity.ai","http://perplexity.localhost","http://localhost:1420","http://127.0.0.1:1420","http://localhost:3000","http://127.0.0.1:3000","http://localhost:5173","http://127.0.0.1:5173"];
+  const MAX_FONT_BYTES = 500 * 1024;
+  const MAX_TOTAL_FONT_BYTES = 2 * 1024 * 1024;
+  const DEFAULT_LINE_HEIGHT = 16;
+  let scrollForwarding = false;
+  let scrollRaf = 0;
+  let trustedTopOrigin = null;
+
+  // Allow entries like "https://*.preview.i.perplexity.ai" — the wildcard
+  // matches a single DNS label (no dots), so "https://*.foo" cannot stretch
+  // across multiple labels.
+  function matchesAllowedOrigin(origin) {
+    if (!origin) return false;
+    for (const entry of allowedParentOrigins) {
+      if (!entry.includes("*")) {
+        if (entry === origin) return true;
+        continue;
+      }
+      const pattern = new RegExp(
+        "^" +
+          entry.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^.]+") +
+          "$",
+      );
+      if (pattern.test(origin)) return true;
+    }
+    return false;
+  }
+
+  // Trust decision: when the sender is same-origin-visible (event.origin is a
+  // real origin like https://www.perplexity.ai) we trust event.origin directly.
+  // When event.origin is "null" (opaque broker srcdoc), we fall back to the
+  // broker's stamped `parentOrigin` to identify the top window. The fallback
+  // is claim-only — we rely on the browser's native `targetOrigin` enforcement
+  // on the response path (see postToTrustedTop) to ensure replies can't be
+  // delivered to anyone but the actual top window of that claimed origin.
+  function getTrustedParentOrigin(event) {
+    const forwardedParentOrigin =
+      typeof event.data.parentOrigin === "string" ? event.data.parentOrigin : null;
+    const parentOrigin = event.origin === "null" ? forwardedParentOrigin : event.origin;
+    return matchesAllowedOrigin(parentOrigin) ? parentOrigin : null;
+  }
+
+  // All responses go to window.top with targetOrigin = the allowlisted origin.
+  // An attacker that iframes us inside their own null-origin broker can claim
+  // any parentOrigin they like, but the browser will drop the reply whenever
+  // the real top's origin doesn't match — so the screenshot never leaves.
+  function postToTrustedTop(message) {
+    if (!trustedTopOrigin) return;
+    try {
+      window.top.postMessage(message, trustedTopOrigin);
+    } catch (_error) {}
+  }
+
+  const PICK_CAPABILITIES = ["pick"];
+  const PICK_CHAIN_LENGTH = 4;
+  const PICK_MAX_TEXT_CHARS = 120;
+  const PICK_MAX_HTML_CHARS = 300;
+
+  function truncate(value, maxChars) {
+    return value.length > maxChars ? value.slice(0, maxChars - 1) + "…" : value;
+  }
+
+  function isPickableElement(element) {
+    return (
+      element instanceof Element &&
+      element !== document.documentElement &&
+      element !== document.body
+    );
+  }
+
+  function resolvePickTarget(x, y) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    const element = document.elementFromPoint(x, y);
+    return isPickableElement(element) ? element.closest("svg") || element : null;
+  }
+
+  function pickLabel(element) {
+    if (element.id) return element.localName + "#" + element.id;
+    return [element.localName].concat(Array.from(element.classList).slice(0, 2)).join(".");
+  }
+
+  // Only attributes that help find the element in source. data-* values and URL
+  // query strings or fragments can carry tokens.
+  const PICK_ATTRIBUTES = new Set([
+    "id",
+    "class",
+    "name",
+    "type",
+    "role",
+    "alt",
+    "aria-label",
+    "href",
+    "src",
+  ]);
+
+  function pickAttributeValue(attribute) {
+    return attribute.name === "href" || attribute.name === "src"
+      ? attribute.value.split(/[?#]/)[0]
+      : attribute.value;
+  }
+
+  function describePickElement(element) {
+    const chain = [];
+    for (
+      let current = element;
+      isPickableElement(current) && chain.length < PICK_CHAIN_LENGTH;
+      current = current.parentElement
+    ) {
+      chain.unshift(current);
+    }
+    const attributes = Array.from(element.attributes)
+      .filter((attribute) => PICK_ATTRIBUTES.has(attribute.name))
+      .map((attribute) => ` ${attribute.name}="${pickAttributeValue(attribute).replace(/"/g, "&quot;")}"`)
+      .join("");
+    const text = (element.innerText || element.textContent || "").replace(/\s+/g, " ").trim();
+    return {
+      chain: chain.map(pickLabel),
+      html: truncate(`<${element.localName}${attributes}>`, PICK_MAX_HTML_CHARS),
+      text: text ? truncate(text, PICK_MAX_TEXT_CHARS) : undefined,
+    };
+  }
+
+  // Hover asks once per frame, and innerText on a large section forces layout,
+  // so only the rect is re-read while the pointer stays on the same element.
+  // Clicks ask for fresh details since the page may have changed the element.
+  let lastPick = null;
+
+  function describePickTarget(element, fresh) {
+    if (fresh || lastPick?.element !== element) {
+      lastPick = { element, details: describePickElement(element) };
+    }
+    const rect = element.getBoundingClientRect();
+    return {
+      rect: { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
+      ...lastPick.details,
+    };
+  }
+
+  function inlineAll(original, clone) {
+    if (original.nodeType !== 1 || clone.nodeType !== 1) return;
+
+    try {
+      const computedStyle = getComputedStyle(original);
+      // cssText on a computed style is the serialized declaration in modern
+      // Chromium/Safari — a single read beats enumerating ~400 longhand
+      // properties. Firefox returns "" here, so we fall back on empty.
+      const serialized = computedStyle.cssText;
+      if (serialized) {
+        clone.style.cssText = serialized;
+      } else {
+        const parts = new Array(computedStyle.length);
+        for (let index = 0; index < computedStyle.length; index += 1) {
+          const property = computedStyle[index];
+          parts[index] = `${property}:${computedStyle.getPropertyValue(property)};`;
+        }
+        clone.style.cssText = parts.join("");
+      }
+    } catch (_error) {}
+
+    const originalChildren = original.children;
+    const clonedChildren = clone.children;
+    for (
+      let index = 0;
+      index < originalChildren.length && index < clonedChildren.length;
+      index += 1
+    ) {
+      inlineAll(originalChildren[index], clonedChildren[index]);
+    }
+  }
+
+  function extractFontUrl(srcValue) {
+    const matches = [
+      ...srcValue.matchAll(
+        /url\(["']?([^"')]+)["']?\)(?:\s*format\(["']?([^"')]+)["']?\))?/gi,
+      ),
+    ];
+    if (matches.length === 0) return null;
+    const woff2 = matches.find((m) => m[2] && m[2].toLowerCase().includes("woff2"));
+    if (woff2) return woff2[1];
+    const woff = matches.find((m) => m[2] && m[2].toLowerCase().includes("woff"));
+    if (woff) return woff[1];
+    return matches[0][1];
+  }
+
+  // Cache resolved font URL -> data URI across captures. Fonts on a page
+  // essentially never change, and a batch run emits multiple captures back to
+  // back — without this we'd refetch + re-base64 every time.
+  const fontDataUriCache = new Map();
+  const SRC_DECLARATION_RE = /src\s*:\s*[^;}]+/i;
+
+  async function fetchAsDataUri(url) {
+    if (fontDataUriCache.has(url)) return fontDataUriCache.get(url);
+    let dataUri = null;
+    try {
+      const response = await fetch(url, { mode: "cors", credentials: "omit" });
+      if (response.ok) {
+        const blob = await response.blob();
+        if (blob.size <= MAX_FONT_BYTES) {
+          dataUri = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () =>
+              resolve(typeof reader.result === "string" ? reader.result : null);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+          });
+        }
+      }
+    } catch (_error) {
+      dataUri = null;
+    }
+    fontDataUriCache.set(url, dataUri);
+    return dataUri;
+  }
+
+  function collectFontFaceRuleTexts() {
+    const rules = [];
+    for (const sheet of document.styleSheets) {
+      let cssRules;
+      try {
+        cssRules = sheet.cssRules;
+      } catch (_error) {
+        continue;
+      }
+      if (!cssRules) continue;
+      for (const rule of cssRules) {
+        const cssText = rule.cssText || "";
+        if (cssText.startsWith("@font-face")) rules.push(cssText);
+      }
+    }
+    return rules;
+  }
+
+  async function buildInlinedFontCss() {
+    const ruleTexts = collectFontFaceRuleTexts();
+    if (ruleTexts.length === 0) return null;
+
+    const resolved = ruleTexts.map((cssText) => {
+      if (!SRC_DECLARATION_RE.test(cssText)) return null;
+      const srcMatch = cssText.match(/src\s*:\s*([^;}]+)[;}]/i);
+      if (!srcMatch) return null;
+      const url = extractFontUrl(srcMatch[1]);
+      if (!url) return null;
+      try {
+        return { cssText, url: new URL(url, document.baseURI).href };
+      } catch (_error) {
+        return null;
+      }
+    });
+
+    const dataUris = await Promise.all(
+      resolved.map((entry) => (entry ? fetchAsDataUri(entry.url) : Promise.resolve(null))),
+    );
+
+    const inlined = [];
+    let totalBytes = 0;
+    for (let index = 0; index < resolved.length; index += 1) {
+      const entry = resolved[index];
+      const dataUri = dataUris[index];
+      if (!entry || !dataUri) continue;
+      const approxBytes = dataUri.length * 0.75;
+      if (totalBytes + approxBytes > MAX_TOTAL_FONT_BYTES) break;
+      totalBytes += approxBytes;
+      inlined.push(entry.cssText.replace(SRC_DECLARATION_RE, `src: url("${dataUri}")`));
+    }
+    return inlined.length > 0 ? inlined.join("\n") : null;
+  }
+
+  function stripExternal(clone) {
+    const images = clone.querySelectorAll("img");
+    for (let index = 0; index < images.length; index += 1) {
+      const src = images[index].getAttribute("src");
+      if (src && !src.startsWith("data:")) images[index].removeAttribute("src");
+    }
+
+    const elements = clone.querySelectorAll("*");
+    for (let index = 0; index < elements.length; index += 1) {
+      const style = elements[index].style.cssText;
+      if (style && style.includes("url(")) {
+        elements[index].style.cssText = style.replace(
+          /url\(["']?(?!data:)[^)"']*["']?\)/gi,
+          "none",
+        );
+      }
+    }
+  }
+
+  function emitScroll() {
+    scrollRaf = 0;
+    if (!scrollForwarding) return;
+    postToTrustedTop({
+      type: "INLINE_EDIT_SCROLL",
+      scrollX: window.scrollX,
+      scrollY: window.scrollY,
+      capabilities: PICK_CAPABILITIES,
+    });
+  }
+
+  window.addEventListener(
+    "scroll",
+    function () {
+      if (!scrollForwarding || scrollRaf) return;
+      scrollRaf = requestAnimationFrame(emitScroll);
+    },
+    { passive: true, capture: true },
+  );
+
+  async function handleCaptureRequest(event) {
+    const requestId = event.data.requestId;
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    function postResult(dataUrl) {
+      postToTrustedTop({
+        type: "INLINE_EDIT_SCREENSHOT_RESULT",
+        requestId,
+        dataUrl,
+        scrollX,
+        scrollY,
+      });
+    }
+
+    try {
+      // Wait for any pending web fonts to resolve so both inline metrics and
+      // the @font-face inlining below see the same loaded faces.
+      if (document.fonts && document.fonts.ready) {
+        try {
+          await document.fonts.ready;
+        } catch (_error) {}
+      }
+
+      const clone = document.documentElement.cloneNode(true);
+      inlineAll(document.documentElement, clone);
+
+      const removedNodes = clone.querySelectorAll("script,link[rel=\"stylesheet\"],style");
+      for (let index = 0; index < removedNodes.length; index += 1) {
+        removedNodes[index].remove();
+      }
+
+      stripExternal(clone);
+
+      // Re-embed web fonts as data-URI @font-face rules so the SVG rasterizer
+      // can resolve them — external font URLs aren't fetched during
+      // foreignObject rendering, which would otherwise force a fallback face
+      // and change text metrics.
+      const inlinedFontCss = await buildInlinedFontCss();
+      if (inlinedFontCss) {
+        const styleEl = document.createElement("style");
+        styleEl.textContent = inlinedFontCss;
+        const head = clone.querySelector("head");
+        if (head) head.appendChild(styleEl);
+        else clone.insertBefore(styleEl, clone.firstChild);
+      }
+
+      const html = new XMLSerializer().serializeToString(clone);
+      const svg =
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+        '<foreignObject width="100%" height="100%">' +
+        `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;overflow:hidden">` +
+        `<div style="position:relative;left:-${scrollX}px;top:-${scrollY}px">` +
+        html +
+        "</div></div></foreignObject></svg>";
+      const svgUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+      const image = new Image();
+      image.onload = function () {
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(image, 0, 0);
+        postResult(canvas.toDataURL("image/png"));
+      };
+      image.onerror = function () {
+        postResult(null);
+      };
+      image.src = svgUrl;
+    } catch (_error) {
+      postResult(null);
+    }
+  }
+
+  window.addEventListener("message", function (event) {
+    if (!event.data) return;
+    // Only accept messages from the direct parent frame. Blocks sibling /
+    // unrelated-window postMessage senders that could otherwise reach us.
+    if (event.source !== window.parent) return;
+
+    const trustedParentOrigin = getTrustedParentOrigin(event);
+    if (!trustedParentOrigin) return;
+    trustedTopOrigin = trustedParentOrigin;
+
+    if (event.data.type === "INLINE_EDIT_PICK") {
+      const element = resolvePickTarget(event.data.x, event.data.y);
+      postToTrustedTop({
+        type: "INLINE_EDIT_PICK_RESULT",
+        seq: event.data.seq,
+        target: element ? describePickTarget(element, event.data.fresh === true) : null,
+      });
+      return;
+    }
+
+    if (event.data.type === "INLINE_EDIT_SCROLL_START") {
+      scrollForwarding = true;
+      emitScroll();
+      return;
+    }
+
+    if (event.data.type === "INLINE_EDIT_SCROLL_STOP") {
+      scrollForwarding = false;
+      if (scrollRaf) cancelAnimationFrame(scrollRaf);
+      scrollRaf = 0;
+      return;
+    }
+
+    if (event.data.type === "INLINE_EDIT_SCROLL_BY") {
+      const { deltaX, deltaY, deltaMode } = event.data;
+      if (!scrollForwarding || !Number.isFinite(deltaX) || !Number.isFinite(deltaY)) return;
+      if (deltaMode !== 0 && deltaMode !== 1 && deltaMode !== 2) return;
+      const lineHeight =
+        parseFloat(getComputedStyle(document.documentElement).lineHeight) || DEFAULT_LINE_HEIGHT;
+      const scaleX = deltaMode === 1 ? lineHeight : deltaMode === 2 ? window.innerWidth : 1;
+      const scaleY = deltaMode === 1 ? lineHeight : deltaMode === 2 ? window.innerHeight : 1;
+      // The selection overlay receives the wheel event instead of this iframe.
+      // Instant scrolling preserves trackpad deltas even on smooth-scroll sites.
+      window.scrollBy({ left: deltaX * scaleX, top: deltaY * scaleY, behavior: "instant" });
+      emitScroll();
+      return;
+    }
+
+    if (event.data.type !== "INLINE_EDIT_CAPTURE_REQUEST") return;
+
+    handleCaptureRequest(event);
+  });
+})();
+
+
+</script></body>
 </html>
