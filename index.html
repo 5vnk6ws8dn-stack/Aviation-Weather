@@ -1,14 +1,13 @@
 <!doctype html>
-<!-- Aviation Weather Hazard Check · Author: © Simon Z. Chan · Updated: 2026-11-11 12:25 EST -->
+<!-- Aviation Weather Hazard Check · Author: © Simon Z. Chan · Updated: 2026-11-12 13:03 EST -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="author" content="Simon Z. Chan">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Aviation Weather Hazard Check</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<!-- Data relay for aviationweather.gov, MeteoAlarm and airport search (those sites block direct browser requests).
+<!-- Data relay for aviationweather.gov, MeteoAlarm and airport search (those sites block direct browser requests)
+     and for hourly email alerts.
      Change this URL to use your own relay, for example https://<your-project>.pages.dev/api with window.__STATIC_DATA__ = false. -->
 <script>window.__API_BASE__ = 'https://aviation-wx-check.pplx.app/port/8000';</script>
 <style>
@@ -16,9 +15,12 @@
     --bg:#0e1216; --surface:#151b21; --surface-2:#1c242c; --line:#28323c;
     --text:#e6ebef; --muted:#8c99a5; --faint:#5f6b76;
     --clear:#4fbf8b; --warn:#e8b14a; --danger:#ef6b5b; --info:#6aa8e8;
-    --mono:'IBM Plex Mono',ui-monospace,monospace; --sans:'IBM Plex Sans',system-ui,sans-serif;
+    --sans:Arial,Helvetica,sans-serif; --mono:Arial,Helvetica,sans-serif; --code:ui-monospace,Menlo,Consolas,monospace;
   }
-  html{font-size:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  /* Body text is 14 pt Arial on a 1280 px-wide window and scales smoothly with the window width
+     (about 12 pt on a phone, up to about 15.5 pt on a wide screen). Every other size is in rem, so the
+     whole layout scales with it. --ts is the A-/A+ text-size factor. */
+  html{--ts:1;font-size:calc(var(--ts) * clamp(0.533rem, 0.4944rem + 0.16vw, 0.75rem));-webkit-text-size-adjust:100%;text-size-adjust:100%}
   *{box-sizing:border-box;margin:0}
   body{background:var(--bg);color:var(--text);font:1.875rem/1.5 var(--sans);-webkit-font-smoothing:antialiased;overflow-wrap:break-word}
   .wrap{max-width:87.5rem;margin:0 auto;padding:2rem 1.25rem 4rem}
@@ -50,7 +52,7 @@
   .tag{font:500 1.375rem var(--mono);padding:2px 0.375rem;border-radius:0.25rem;background:var(--surface-2);color:var(--muted)}
   .card .d{color:var(--muted);font-size:1.625rem;margin-top:0.25rem}
   details{margin-top:0.375rem} summary{cursor:pointer;color:var(--info);font-size:1.5rem}
-  pre{white-space:pre-wrap;word-break:break-word;font:1.5rem/1.45 var(--mono);color:var(--muted);background:var(--bg);padding:0.625rem;border-radius:0.375rem;margin-top:0.375rem}
+  pre{white-space:pre-wrap;word-break:break-word;font:1.5rem/1.45 var(--code);color:var(--muted);background:var(--bg);padding:0.625rem;border-radius:0.375rem;margin-top:0.375rem}
   .empty{color:var(--faint);font-size:1.625rem;padding:0.625rem 0}
   .err{color:var(--danger);font-size:1.625rem;padding:0.5rem 0}
   .skel{height:3.375rem;border-radius:0.5rem;background:linear-gradient(90deg,var(--surface) 0,var(--surface-2) 50%,var(--surface) 100%);background-size:200% 100%;animation:sh 1.2s infinite}
@@ -106,7 +108,14 @@
   .tile.clear{border-left-color:var(--clear)} .tile.clear .ts{color:var(--clear)}
   .lpanel{margin-bottom:2.5rem;scroll-margin-top:1rem}
   body.multi .lpanel+.lpanel{border-top:2px solid var(--line);padding-top:2rem}
-  @media (max-width:600px){.toggle{margin-left:0}label{flex:1 1 40%;min-width:0}.loc{flex-basis:100%}.toggle{flex-basis:100%}.lrow{padding-left:0}.lrow>.lnum,.lrow+.lrow>.lnum{position:static}.lrow>.lnum{margin-bottom:0.25rem}.lrow .loc{flex-basis:calc(100% - 3rem)}.rm{flex-basis:100%}input{width:100%;padding:0.75rem 0.5rem}.loc{width:100%}.loc input{width:100%}}
+  .email{background:var(--surface);border:1px solid var(--line);border-radius:0.625rem;padding:0.875rem;margin-bottom:1.25rem}
+  .erow{display:flex;gap:0.5rem;flex-wrap:wrap;align-items:flex-end}
+  .erow .emails{flex:1 1 28rem;min-width:0}
+  .erow .emails input{width:100%}
+  .sec{background:var(--surface-2);color:var(--text);border:1px solid var(--line)}
+  .estat{font-size:1.5rem;color:var(--muted);margin-top:0.625rem;min-height:1.5em}
+  .estat.ok{color:var(--clear)} .estat.bad{color:var(--danger)}
+  @media (max-width:600px){.erow .emails{flex-basis:100%}.erow button{flex:1 1 40%}.toggle{margin-left:0}label{flex:1 1 40%;min-width:0}.loc{flex-basis:100%}.toggle{flex-basis:100%}.lrow{padding-left:0}.lrow>.lnum,.lrow+.lrow>.lnum{position:static}.lrow>.lnum{margin-bottom:0.25rem}.lrow .loc{flex-basis:calc(100% - 3rem)}.rm{flex-basis:100%}input{width:100%;padding:0.75rem 0.5rem}.loc{width:100%}.loc input{width:100%}}
 </style>
 </head>
 <body>
@@ -114,7 +123,7 @@
   <header>
     <div>
       <h1>Aviation Weather Hazard Check</h1>
-      <div class="sub">Official warnings, SIGMETs, AIRMETs and advisories for up to 4 locations at once, with international and backup sources</div>
+      <div class="sub">Official warnings, SIGMETs, AIRMETs and advisories for up to 10 airports or cities at once, with email alerts, international and backup sources</div>
     </div>
     <div class="hright">
       <div class="tsize" role="group" aria-label="Text size">
@@ -136,6 +145,18 @@
       <label class="toggle"><input type="checkbox" id="auto" checked> Auto-refresh every 15 min</label>
     </div>
   </form>
+
+  <section class="email" aria-labelledby="email-h">
+    <h2 id="email-h"><span>Email alerts</span><span>up to 5 addresses, comma-separated</span></h2>
+    <div class="erow">
+      <label class="emails">Email address(es)<input id="emails" type="text" inputmode="email" autocomplete="email" placeholder="you@example.com, ops@example.com" title="Separate several addresses with commas"></label>
+      <button type="button" id="e-sub">Email me new hazards</button>
+      <button type="button" id="e-test" class="sec">Send test</button>
+      <button type="button" id="e-unsub" class="sec">Unsubscribe</button>
+      <button type="button" id="e-now" class="sec">Email this report</button>
+    </div>
+    <div class="estat" id="estat" aria-live="polite"></div>
+  </section>
 
   <div class="summary" id="summary" hidden aria-label="Summary of all locations"></div>
   <div id="results"></div>
@@ -162,8 +183,8 @@ const API = raw.startsWith('__PORT_') ? (LOCAL.has(location.hostname) || locatio
 // Standalone copy (standalone/index.html): the API base is a full URL to a relay server on another site.
 const REMOTE = /^https?:\/\//.test(raw) && new URL(raw).host !== location.host;
 const AUTHOR = '© Simon Z. Chan';
-const UPDATED = '2026-11-11 12:25 EST';   // Updated: 2026-11-11 12:25 EST (tools/release.py stamps this)
-const APP_VERSION = '1.8.1';   // keep in sync with VERSION (tools/release.py does this)
+const UPDATED = '2026-11-12 13:03 EST';   // Updated: 2026-11-12 13:03 EST (tools/release.py stamps this)
+const APP_VERSION = '1.9.0';   // keep in sync with VERSION (tools/release.py does this)
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtT = v => { if (v==null) return '—'; const d = typeof v==='number' ? new Date(v*1000) : new Date(v); return isNaN(d) ? esc(v) : d.toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',timeZoneName:'short'}); };
@@ -279,7 +300,8 @@ async function modelHazards(lat, lon){
 }
 
 // ---- Locations: up to 4 checked together. Each has an input row and a results panel. ----
-const MAX_LOCS = 4;
+const MAX_LOCS = 10;
+const DEFAULT_LOCS = ['KFRG', 'KSUT', 'KTEB', 'EGLF'];   // Republic, Cape Fear Regional Jetport, Teterboro, Farnborough
 const locs = [];
 let locSeq = 0;
 const Q = (l, sel) => l.el.querySelector(sel);
@@ -330,6 +352,7 @@ async function check(l, shared){
   setBanner(l, 'idle', `Checking ${where}…`);
   const [rN, rG] = await Promise.all([settle(nws(lat,lon)), settle(reverseGeo(lat,lon))]);
   const {rS, rI, rC} = await shared;
+  l.geo = rG.ok ? rG.v : null; l.found = [];   // l.found: plain-text hazard list for the email report
   const status = []; let total = 0, gaps = 0, backup = false;
 
   // Official warnings: NWS first; outside the US (or if NWS is down) use the national service for that country.
@@ -342,6 +365,7 @@ async function check(l, shared){
     if (alt){ const r = await settle(alt[1]()); officialName = alt[0]; if (r.ok){ official = r.v; status.push([alt[0], rN.ok ? 'ok' : 'backup']); } else status.push([alt[0],'bad']); }
   }
   P(l,'h-nws').textContent = `Official weather warnings · ${official ? officialName : 'no source'}`;
+  if (official) l.found.push(...official.map(a => `${a.src || officialName}: ${a.event}${a.severity ? ' (' + a.severity + ')' : ''}${a.expires ? ', until ' + fmtT(a.expires) : ''}`));
   if (official){ total += official.length; render(l, 'nws', official, nwsCard, `No active ${officialName} warnings at this point.`); }
   else { gaps++; P(l,'n-nws').textContent=''; P(l,'nws').innerHTML = `<div class="err">${rN.ok ? 'No official warning feed is connected for this country.' : 'NWS is unavailable and no other official feed covers this point.'} See the model backup below.</div>`; }
 
@@ -350,10 +374,11 @@ async function check(l, shared){
     const us = rS.ok ? rS.v.filter(s => s.coords?.length && inside(lat,lon,s.coords)) : [];
     const intl = rI.ok ? rI.v.filter(s => s.icaoId!=='KKCI' && s.coords?.length && inside(lat,lon,s.coords)) : [];
     const m = us.concat(intl); total += m.length;
+    l.found.push(...m.map(x => `${x.firId ? 'Intl SIGMET' : x.airSigmetType}: ${x.hazard}, ${fmtT(x.validTimeFrom)} to ${fmtT(x.validTimeTo)}`));
     render(l, 'sig', m, sigCard, 'No SIGMETs or AIRMETs cover this point.');
     status.push(['AWC SIGMET/AIRMET', rS.ok && rI.ok ? 'ok' : 'bad']);
   } else { gaps++; fail(l, 'sig', rS.e); status.push(['AWC SIGMET/AIRMET','bad']); }
-  if (rC.ok){ const m = rC.v.filter(c => c.coords?.length && inside(lat,lon,c.coords)); total+=m.length; render(l, 'cwa', m, cwaCard, 'No Center Weather Advisories cover this point.'); status.push(['AWC CWA','ok']); }
+  if (rC.ok){ const m = rC.v.filter(c => c.coords?.length && inside(lat,lon,c.coords)); total+=m.length; l.found.push(...m.map(c => `CWA ${c.cwsu}: ${c.hazard}, ${fmtT(c.validTimeFrom)} to ${fmtT(c.validTimeTo)}`)); render(l, 'cwa', m, cwaCard, 'No Center Weather Advisories cover this point.'); status.push(['AWC CWA','ok']); }
   else { fail(l, 'cwa', rC.e); status.push(['AWC CWA','bad']); if (!rS.ok) gaps++; }
 
   // Backup model forecast whenever an official/aviation source is missing
@@ -362,7 +387,7 @@ async function check(l, shared){
   if (needModel){
     skel(l,'model'); backup = true;
     const r = await settle(modelHazards(lat,lon));
-    if (r.ok){ total += r.v.length; render(l, 'model', r.v, modelCard, 'Model shows no thunderstorms, icing, strong gusts or low visibility in the next 3 hours.'); status.push(['Open-Meteo','backup']); }
+    if (r.ok){ total += r.v.length; l.found.push(...r.v.map(x => `Model (unofficial): ${x.event}, ${x.headline}`)); render(l, 'model', r.v, modelCard, 'Model shows no thunderstorms, icing, strong gusts or low visibility in the next 3 hours.'); status.push(['Open-Meteo','backup']); }
     else { fail(l, 'model', r.e); status.push(['Open-Meteo','bad']); }
   }
   chips(l, status);
@@ -539,7 +564,7 @@ function renumber(){
     Q(l,'.rm').hidden = locs.length === 1; Q(l,'.rm').setAttribute('aria-label', `Remove location ${i+1}`);
   });
   const full = locs.length >= MAX_LOCS;
-  $('add').disabled = full; $('add').textContent = full ? 'Maximum 4 locations' : '+ Add location';
+  $('add').disabled = full; $('add').textContent = full ? `Maximum ${MAX_LOCS} locations` : '+ Add location';
   $('lcount').textContent = `${locs.length} of ${MAX_LOCS} locations`;
   $('go').textContent = locs.length > 1 ? 'Check all' : 'Check now';
   document.body.classList.toggle('multi', locs.length > 1);
@@ -556,12 +581,12 @@ $('summary').addEventListener('click', e => {
   const t = e.target.closest('.tile'); if (!t) return;
   $('loc-' + t.dataset.id).scrollIntoView({behavior:'smooth', block:'start'});
 });
-// The location list is kept in the address (?loc=KJFK&loc=Denver,%20CO) so a bookmark remembers it.
+// The location list is kept in the address (?loc=KTEB&loc=Denver,%20CO) so a bookmark remembers it.
 function saveURL(){
   try {
     const u = new URL(location.href); u.searchParams.delete('loc');
     const vals = locs.map(l => Q(l,'.q').value.trim() || `${Q(l,'.lat').value.trim()},${Q(l,'.lon').value.trim()}`);
-    if (!(vals.length === 1 && vals[0] === 'KJFK')) vals.forEach(v => u.searchParams.append('loc', v));
+    if (vals.join('|') !== DEFAULT_LOCS.join('|')) vals.forEach(v => u.searchParams.append('loc', v));
     history.replaceState(null, '', u);
   } catch {}
 }
@@ -589,7 +614,7 @@ setInterval(() => { if ($('auto').checked && !document.hidden) checkAll(); }, 15
 function initLocations(){
   const COORD = /^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/;
   const want = new URLSearchParams(location.search).getAll('loc').map(v => v.trim()).filter(Boolean).slice(0, MAX_LOCS);
-  if (!want.length) addLoc('KJFK', '40.6413', '-73.7781', 'KJFK', 'KJFK · NEW YORK/JOHN F KENNEDY INTL');
+  if (!want.length) DEFAULT_LOCS.forEach(c => addLoc(c));
   for (const v of want){
     const m = v.match(COORD);
     if (m) addLoc('', (+m[1]).toFixed(4), (+m[2]).toFixed(4), '', 'Custom coordinates');
@@ -598,6 +623,79 @@ function initLocations(){
   renderSummary();
   checkAll();
 }
+// ---- Email alerts ----
+// The server checks subscribed locations every hour and emails only NEW hazards.
+// Addresses are never put in the page URL or stored in the browser.
+const EMAIL_API = window.__EMAIL_API__ || API;
+let emailOn = false;
+const estat = (t, cls='') => { const e = $('estat'); e.textContent = t; e.className = 'estat ' + cls; };
+const readEmails = () => [...new Set($('emails').value.split(/[\s,;]+/).map(s => s.trim().toLowerCase()).filter(Boolean))];
+function checkEmails(){
+  const list = readEmails();
+  if (!list.length){ estat('Enter at least one email address.', 'bad'); $('emails').focus(); return null; }
+  if (list.length > 5){ estat('Up to 5 email addresses at a time.', 'bad'); return null; }
+  const bad = list.filter(e => !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(e));
+  if (bad.length){ estat('Check these addresses: ' + bad.join(', '), 'bad'); return null; }
+  return list;
+}
+async function emailPost(path, body){
+  const r = await fetch(`${EMAIL_API}/${path}`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || `Server returned ${r.status}`);
+  return d;
+}
+async function locPayload(){
+  for (const l of locs){                      // look up anything typed but not resolved yet
+    const v = Q(l,'.q').value.trim();
+    if (v && v !== l.lastQ && await resolveLocation(l)) l.lastQ = v;
+  }
+  const out = [];
+  for (const l of locs){
+    const lat = parseFloat(Q(l,'.lat').value), lon = parseFloat(Q(l,'.lon').value);
+    if (isNaN(lat) || isNaN(lon)) continue;
+    let g = l.geo; if (!g){ try { g = await reverseGeo(lat, lon); } catch { g = null; } }
+    out.push({label: l.label || `${lat.toFixed(3)},${lon.toFixed(3)}`, lat, lon, cc: g?.countryCode || '', names: (g?.names || []).slice(0, 12)});
+  }
+  return out;
+}
+function reportText(){
+  const lines = [`Aviation weather hazard check, ${new Date().toLocaleString()}`, ''];
+  locs.forEach((l, i) => {
+    const name = l.label || Q(l,'.q').value || `Location ${i+1}`;
+    if (!l.found){ lines.push(`${i+1}. ${name}: not checked yet`); return; }
+    lines.push(`${i+1}. ${name}: ${l.found.length ? l.found.length + ' hazard(s)' : 'no hazards found'}`);
+    l.found.slice(0, 8).forEach(f => lines.push('   - ' + f));
+  });
+  lines.push('', 'Not for flight planning. Confirm with an official briefing.', location.href.split('#')[0]);
+  return lines.join('\n').slice(0, 1800);       // keep the mailto link short enough for mail apps
+}
+function initEmail(){
+  const btns = ['e-sub','e-test','e-unsub'];
+  const busy = on => btns.forEach(b => $(b).disabled = on || !emailOn);
+  const run = (fn) => async () => { const list = checkEmails(); if (!list) return; busy(true);
+    try { await fn(list); } catch (e) { estat(e.message, 'bad'); } finally { busy(false); } };
+  $('e-sub').addEventListener('click', run(async list => {
+    estat('Saving…');
+    const L = await locPayload();
+    if (!L.length) throw new Error('Add at least one location first.');
+    const d = await emailPost('subscribe', {emails: list, locations: L});
+    estat(d.message || `Subscribed ${list.join(', ')} to ${L.map(x => x.label).join(', ')}.`, 'ok');
+  }));
+  $('e-test').addEventListener('click', run(async list => { estat('Sending…'); const d = await emailPost('test-email', {emails: list}); estat(d.message || 'Test email sent.', 'ok'); }));
+  $('e-unsub').addEventListener('click', run(async list => { const d = await emailPost('unsubscribe', {emails: list}); estat(`Unsubscribed ${list.join(', ')}${d.removed != null ? ` (${d.removed} location(s) removed)` : ''}.`, 'ok'); }));
+  $('e-now').addEventListener('click', () => {
+    const list = readEmails();
+    location.href = `mailto:${list.map(encodeURIComponent).join(',')}?subject=${encodeURIComponent('Aviation weather hazard check')}&body=${encodeURIComponent(reportText())}`;
+  });
+  busy(false);
+  if (!EMAIL_API){ estat('Automatic email alerts need the server. "Email this report" opens your email app with the current results.'); return; }
+  fetch(`${EMAIL_API}/health`).then(r => r.json()).then(h => {
+    emailOn = !!h.email_enabled; busy(false);
+    estat(emailOn ? 'Hourly alerts: enter one or more addresses and press "Email me new hazards". Each email has an unsubscribe link.'
+                  : 'Automatic email alerts aren\'t switched on for this server yet. "Email this report" opens your email app with the current results.');
+  }).catch(() => estat('Email server unreachable. "Email this report" still works.', 'bad'));
+}
+
 $('ver').textContent = `Version ${APP_VERSION}`;
 $('credit').textContent = `${AUTHOR} · Updated ${UPDATED}`;
 $('vbadge').textContent = `v${APP_VERSION}`;
@@ -621,13 +719,13 @@ async function loadVersions() {
 }
 loadVersions();
 // Text size: every size on the page is in rem, so changing the root size scales the whole layout.
-// It multiplies the visitor's own browser font setting and works with browser zoom.
+// A-/A+ multiplies the window-based size (14 pt Arial at 1280 px), the browser's font setting and browser zoom.
 // The choice is kept in the address (?text=125) so a bookmark remembers it.
 const TS = [50, 62.5, 75, 87.5, 100, 112.5, 125, 150];
 const tsQ = Number(new URLSearchParams(location.search).get('text'));
 let tsI = TS.indexOf(tsQ || 100); if (tsI < 0) tsI = TS.indexOf(100);
 function applyTS() {
-  document.documentElement.style.fontSize = TS[tsI] + '%';
+  document.documentElement.style.setProperty('--ts', TS[tsI] / 100);
   $('ts-val').textContent = TS[tsI] + '%';
   $('ts-down').disabled = tsI === 0; $('ts-up').disabled = tsI === TS.length - 1;
   try { const u = new URL(location.href); if (TS[tsI] === 100) u.searchParams.delete('text'); else u.searchParams.set('text', TS[tsI]); history.replaceState(null, '', u); } catch {}
@@ -636,6 +734,7 @@ $('ts-down').addEventListener('click', () => { if (tsI > 0) { tsI--; applyTS(); 
 $('ts-up').addEventListener('click', () => { if (tsI < TS.length - 1) { tsI++; applyTS(); } });
 applyTS();
 initLocations();
+initEmail();
 </script>
 </body>
 </html>
