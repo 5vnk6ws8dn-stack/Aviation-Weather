@@ -1,7 +1,7 @@
 # Aviation Weather Hazard Check — single-file version
 
 Author: © Simon Z. Chan  
-Updated: 2026-11-12 13:03 EST
+Updated: 2026-11-12 13:47 EST
 
 
 `index.html` is the whole page in one file. Upload it to any GitHub repository, GitHub Pages,
