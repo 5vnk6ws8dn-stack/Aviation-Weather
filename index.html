@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Aviation Weather Hazard Check · Author: © Simon Z. Chan · Updated: 2026-11-12 15:50 EST -->
+<!-- Aviation Weather Hazard Check · Author: © Simon Z. Chan · Updated: 2026-11-14 08:39 EST -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -64,6 +64,7 @@
   .card.sev-model{border-left-color:var(--info)}
   footer{color:var(--faint);font-size:1.5rem;margin-top:2rem;border-top:1px solid var(--line);padding-top:0.875rem}
   footer a{color:var(--muted)}
+  .card a,.empty a{color:#79c0ff}
   .hright{display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap}
   .tsize{display:flex;align-items:center;border:1px solid var(--line);border-radius:999px;background:var(--surface);overflow:hidden}
   .tsize button{background:transparent;color:var(--muted);font:600 1.375rem var(--sans);padding:0.375rem 0.875rem;border-radius:0}
@@ -162,7 +163,7 @@
       <button id="add" type="button">+ Add location</button>
       <span class="lcount" id="lcount" aria-live="polite"></span>
       <button id="go" type="submit">Check now</button>
-      <label class="toggle"><input type="checkbox" id="auto" checked> Auto-refresh every 15 min</label>
+      <label class="toggle"><input type="checkbox" id="auto"> Auto-refresh every 15 min</label>
     </div>
   </form>
 
@@ -212,8 +213,8 @@ const API = raw.startsWith('__PORT_') ? (LOCAL.has(location.hostname) || locatio
 // Standalone copy (standalone/index.html): the API base is a full URL to a relay server on another site.
 const REMOTE = /^https?:\/\//.test(raw) && new URL(raw).host !== location.host;
 const AUTHOR = '© Simon Z. Chan';
-const UPDATED = '2026-11-12 15:50 EST';   // Updated: 2026-11-12 15:50 EST (tools/release.py stamps this)
-const APP_VERSION = '1.10.1';   // keep in sync with VERSION (tools/release.py does this)
+const UPDATED = '2026-11-14 08:39 EST';   // Updated: 2026-11-14 08:39 EST (tools/release.py stamps this)
+const APP_VERSION = '1.11.0';   // keep in sync with VERSION (tools/release.py does this)
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtT = v => { if (v==null) return '—'; const d = typeof v==='number' ? new Date(v*1000) : new Date(v); return isNaN(d) ? esc(v) : d.toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',timeZoneName:'short'}); };
@@ -331,9 +332,11 @@ async function modelHazards(lat, lon){
 
 // ---- Locations: up to 4 checked together. Each has an input row and a results panel. ----
 const MAX_LOCS = 10;
-const DEFAULT_LOCS = ['KFRG', 'KSUT', 'KTEB', 'EGLF'];
+const DEFAULT_LOCS = ['KBDL', 'KFRG', 'KTEB', 'KSUT', 'KILM', 'EGLF'];
 // Default airports with fixed coordinates so they never depend on a lookup (EGLF is Farnborough, Hampshire, UK).
 const DEFAULT_INFO = {
+  KBDL: ['41.9386', '-72.6880', 'KBDL / BDL · Bradley International Airport, Windsor Locks, CT, United States'],
+  KILM: ['34.2723', '-77.9051', 'KILM / ILM · Wilmington International Airport, Wilmington, NC, United States'],
   KFRG: ['40.7286', '-73.4143', 'KFRG / FRG · Republic Airport, East Farmingdale, NY, United States'],
   KSUT: ['33.9293', '-78.0750', 'KSUT · Cape Fear Regional Jetport / Howie Franklin Field, Southport, NC, United States'],
   KTEB: ['40.8501', '-74.0608', 'KTEB / TEB · Teterboro Airport, Teterboro, NJ, United States'],
@@ -377,6 +380,30 @@ const cwaCard = c => `<div class="card"><div class="t">${esc(c.hazard)}<span cla
     <div class="d">Valid ${fmtT(c.validTimeFrom)} → ${fmtT(c.validTimeTo)}</div>
     <details><summary>Raw text</summary><pre>${esc(c.cwaText||'')}</pre></details></div>`;
 
+// ---- FAA airport status (NAS Status, via the server / Cloudflare function) ----
+async function faaStatus(){
+  if (!API) throw new Error('FAA status needs the data relay');
+  const r = await fetch(`${API}/faa`, {credentials:'same-origin'});
+  if (!r.ok) throw new Error(`FAA NAS Status returned ${r.status}`);
+  return r.json();
+}
+// KTEB -> TEB, PANC -> ANC (FAA uses 3-letter location IDs); null for non-US or city locations.
+const faaCode = label => { const c = String(label || '').trim().toUpperCase(); return /^(K[A-Z0-9]{3}|P[AHGF][A-Z0-9]{2})$/.test(c) ? c.slice(1) : null; };
+const FAA_KIND = {'Ground Stop Programs':'Ground stop', 'Ground Delay Programs':'Ground delay program', 'General Arrival/Departure Delay Info':'Arrival/departure delay',
+                  'Airport Closures':'Airport closure', 'Deicing':'De-icing', 'Airspace Flow Programs':'Airspace flow program'};
+const faaKind = k => FAA_KIND[k] || k;
+const FAA_FIELD = {Avg:'Average delay', Max:'Maximum delay', Min:'Minimum delay', End_Time:'Expected end', Start:'Start', Reopen:'Reopens', Trend:'Trend'};
+const faaField = k => FAA_FIELD[k] || k.replace(/_/g, ' ');
+const faaCard = e => {
+  if (e.planned) return `<div class="card sev-model"><div class="t">${esc(e.event.replace(/^-/, ''))}<span class="tag">Planned</span><span class="tag">FAA ATCSCC</span></div>
+    <div class="d">${e.time ? esc(e.time) + ' · ' : ''}From today's ATCSCC operations plan${e.link ? ` · <a href="${esc(e.link)}" target="_blank" rel="noopener">Advisory</a>` : ''}</div></div>`;
+  const f = e.fields, sev = /Stop|Closure/.test(e.kind) ? 'sev-high' : '';
+  const rows = Object.entries(f).filter(([k]) => k !== 'Reason').map(([k, v]) => `<div class="d">${esc(faaField(k))}: ${esc(v)}</div>`).join('');
+  return `<div class="card ${sev}"><div class="t">${esc(faaKind(e.kind))}<span class="tag">FAA</span></div>
+    ${f.Reason ? `<div class="d">Reason: ${esc(f.Reason)}</div>` : ''}${rows}
+    <div class="d"><a href="https://nasstatus.faa.gov/" target="_blank" rel="noopener">FAA NAS Status</a></div></div>`;
+};
+
 const settle = p => p.then(v => ({ok:true, v}), e => ({ok:false, e}));
 function chips(l, list){ P(l,'sources').innerHTML = list.map(([name, st]) => `<span class="chip ${st}">${esc(name)}${st==='bad'?' · unavailable':st==='backup'?' · backup in use':''}</span>`).join(''); }
 
@@ -385,10 +412,10 @@ async function check(l, shared){
   const lat = parseFloat(Q(l,'.lat').value), lon = parseFloat(Q(l,'.lon').value);
   if (isNaN(lat)||isNaN(lon)){ setBanner(l, 'alert', 'Enter a valid latitude and longitude'); return; }
   const where = l.label || 'this point';
-  ['nws','sig','cwa'].forEach(k => skel(l,k)); P(l,'sources').innerHTML='';
+  ['faa','nws','sig','cwa'].forEach(k => skel(l,k)); P(l,'sources').innerHTML='';
   setBanner(l, 'idle', `Checking ${where}…`);
   const [rN, rG] = await Promise.all([settle(nws(lat,lon)), settle(reverseGeo(lat,lon))]);
-  const {rS, rI, rC} = await shared;
+  const {rS, rI, rC, rF} = await shared;
   l.geo = rG.ok ? rG.v : null; l.found = [];   // l.found: plain-text hazard list for the email report
   const status = []; let total = 0, gaps = 0, backup = false;
   const mapD = {lat, lon, official: [], sig: [], cwa: []};   // what the weather map draws
@@ -422,6 +449,24 @@ async function check(l, shared){
   if (rC.ok){ const m = rC.v.filter(c => c.coords?.length && inside(lat,lon,c.coords)); total+=m.length;
     mapD.cwa = rC.v.filter(c => c.coords?.length && nearBox(lat, lon, c.coords)).map(c => ({...c, hit: m.includes(c)})); l.found.push(...m.map(c => `CWA ${c.cwsu}: ${c.hazard}, ${fmtT(c.validTimeFrom)} to ${fmtT(c.validTimeTo)}`)); render(l, 'cwa', m, cwaCard, 'No Center Weather Advisories cover this point.'); status.push(['AWC CWA','ok']); }
   else { fail(l, 'cwa', rC.e); status.push(['AWC CWA','bad']); if (!rS.ok) gaps++; }
+
+  // FAA airport status (US airports only): active ground stops / delay programs / delays / closures, plus planned ones
+  const code = faaCode(l.label);
+  if (!code){
+    P(l,'n-faa').textContent = '';
+    P(l,'faa').innerHTML = `<div class="empty">${l.geo?.countryCode && l.geo.countryCode !== 'US' ? 'FAA airport status covers US airports only.' : 'Enter a US airport code (for example KTEB) to see FAA ground stops and delays.'}</div>`;
+  } else if (rF.ok){
+    const act = rF.v.events.filter(e => e.arpt === code);
+    const re = new RegExp(`(^|[^A-Z0-9])${code}([^A-Z0-9]|$)`);
+    const plan = (rF.v.planned || []).filter(x => re.test(x.event)).map(x => ({...x, planned:true, link: rF.v.plan_link}));
+    total += act.length;
+    l.found.push(...act.map(e => `FAA ${faaKind(e.kind)} at ${code}: ${Object.entries(e.fields).map(([k, v]) => faaField(k) + ': ' + v).join('; ')}`));
+    l.found.push(...plan.map(x => `FAA planned (ATCSCC operations plan): ${[x.time, x.event].filter(Boolean).join(' ')}`));
+    P(l,'n-faa').textContent = [act.length ? `${act.length} active` : '', plan.length ? `${plan.length} planned` : ''].filter(Boolean).join(' · ');
+    P(l,'faa').innerHTML = act.length || plan.length ? act.concat(plan).map(faaCard).join('')
+      : `<div class="empty">No FAA ground stops, delay programs, delays or closures at ${esc(code)}. <a href="https://nasstatus.faa.gov/" target="_blank" rel="noopener">FAA NAS Status</a></div>`;
+    status.push(['FAA NAS Status','ok']);
+  } else { fail(l, 'faa', rF.e); status.push(['FAA NAS Status','bad']); }
 
   // Backup model forecast whenever an official/aviation source is missing
   const needModel = gaps > 0 || !rN.ok || (!rS.ok && !rI.ok);
@@ -614,6 +659,7 @@ function addLoc(text='', lat='', lon='', label='', place=''){
   panel.innerHTML = `<div class="banner idle"><div class="big"><span class="pnum"></span><span class="btxt">Not checked yet</span></div><div class="meta"></div></div>
     <div class="sources" aria-live="polite"></div>
     <section class="map-sec" hidden><h2><span>Weather map · radar and warning areas</span><span class="ff-links"></span></h2><div class="wmap" role="img" aria-label="Map of radar and warning areas around this location"></div><div class="mlegend"></div></section>
+    <section><h2><span>FAA ground stops and delays</span><span class="n-faa"></span></h2><div class="faa"></div></section>
     <section><h2><span class="h-nws">Official weather warnings</span><span class="n-nws"></span></h2><div class="nws"></div></section>
     <section><h2><span>SIGMETs / AIRMETs (US + international)</span><span class="n-sig"></span></h2><div class="sig"></div></section>
     <section><h2><span>Center Weather Advisories (US)</span><span class="n-cwa"></span></h2><div class="cwa"></div></section>
@@ -687,7 +733,7 @@ async function checkAll(){
   locs.forEach(l => setBanner(l, 'idle', 'Checking…'));
   renderSummary();
   // The shared aviation feeds start downloading while locations are looked up.
-  const shared = Promise.all([settle(awc('airsigmet')), settle(awc('isigmet')), settle(awc('cwa'))]).then(([rS, rI, rC]) => ({rS, rI, rC}));
+  const shared = Promise.all([settle(awc('airsigmet')), settle(awc('isigmet')), settle(awc('cwa')), settle(faaStatus())]).then(([rS, rI, rC, rF]) => ({rS, rI, rC, rF}));
   await Promise.all(locs.map(async l => {
     const v = Q(l,'.q').value.trim();
     if (v && v !== l.lastQ){ if (!(await resolveLocation(l))) return; l.lastQ = v; }
